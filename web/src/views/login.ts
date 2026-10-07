@@ -36,7 +36,9 @@ function base64UrlEncode(bytes: Uint8Array): string {
 export async function renderLoginView(container: HTMLElement) {
   const profile = getActiveProfile();
   const session = getSession();
-  const origin = window.location.origin;
+  const effectiveOrigin = (profile.host && profile.host.trim())
+    ? profile.host.trim().replace(/\/+$/, '')
+    : window.location.origin;
   const tenant = profile.tenant || 'common';
 
   let mockUsers: MockUser[] = [];
@@ -141,7 +143,7 @@ export async function renderLoginView(container: HTMLElement) {
 
             <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400">
               <span class="flex items-center gap-1.5 text-emerald-400 font-semibold mb-0.5">${icon('check-circle', 'w-3.5 h-3.5')} Target Authority</span>
-              <span class="text-slate-300 truncate block">${origin}/${tenant}</span>
+              <span class="text-slate-300 truncate block">${effectiveOrigin}/${tenant}</span>
             </div>
           </div>
 
@@ -166,8 +168,8 @@ export async function renderLoginView(container: HTMLElement) {
       };
       savePKCEState(pkceState);
 
-      const redirectUri = `${origin}/callback`;
-      let authUrl = `${origin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
+      const redirectUri = `${window.location.origin}/callback`;
+      let authUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
         profile.clientId
       )}&response_type=code&redirect_uri=${encodeURIComponent(
         redirectUri
@@ -345,8 +347,10 @@ export async function renderLoginView(container: HTMLElement) {
     alertEl.textContent = 'Verifying ID Token signature against local JWKS...';
 
     try {
-      const jwksUri = `${origin}/${tenant}/discovery/v2.0/keys`;
-      const issuer = `https://login.microsoftonline.com/${tenant}/v2.0`;
+      const jwksUri = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
+      const issuer = profile.issuerMode === 'entra'
+        ? `https://login.microsoftonline.com/${tenant}/v2.0`
+        : `${effectiveOrigin}/${tenant}/v2.0`;
       const res = await verifyIDToken(session.id_token, jwksUri, issuer, profile.clientId);
 
       if (res.verified) {
@@ -370,7 +374,7 @@ export async function renderLoginView(container: HTMLElement) {
       return;
     }
     try {
-      const tokenUrl = `${origin}/${tenant}/oauth2/v2.0/token`;
+      const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
       const newTokens = await exchangeToken(tokenUrl, {
         grant_type: 'refresh_token',
         client_id: profile.clientId,

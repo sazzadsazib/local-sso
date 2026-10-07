@@ -143,6 +143,10 @@ func TestOIDCDiscoveryAndJWKS(t *testing.T) {
 		t.Errorf("unexpected authorize endpoint: %s", disc.AuthorizationEndpoint)
 	}
 
+	if disc.Issuer != "http://example.com/mytenant/v2.0" {
+		t.Errorf("unexpected discovery issuer: %s", disc.Issuer)
+	}
+
 	// JWKS
 	rec = httptest.NewRecorder()
 	req = httptest.NewRequest("GET", "/mytenant/discovery/v2.0/keys", nil)
@@ -153,6 +157,38 @@ func TestOIDCDiscoveryAndJWKS(t *testing.T) {
 	var jwks idp.JWKS
 	if err := json.Unmarshal(rec.Body.Bytes(), &jwks); err != nil || len(jwks.Keys) == 0 {
 		t.Fatalf("unmarshal JWKS failed: %v", err)
+	}
+}
+
+func TestReverseProxyAndNgrokHeaders(t *testing.T) {
+	s := setupTestServer(t)
+	handler := s.Handler()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/test-tenant/v2.0/.well-known/openid-configuration", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Header.Set("X-Forwarded-Host", "tunnel-123.ngrok-free.app")
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	var disc idp.OpenIDConfiguration
+	if err := json.Unmarshal(rec.Body.Bytes(), &disc); err != nil {
+		t.Fatalf("unmarshal discovery: %v", err)
+	}
+
+	expectedIssuer := "https://tunnel-123.ngrok-free.app/test-tenant/v2.0"
+	if disc.Issuer != expectedIssuer {
+		t.Errorf("expected issuer %q, got %q", expectedIssuer, disc.Issuer)
+	}
+	expectedAuth := "https://tunnel-123.ngrok-free.app/test-tenant/oauth2/v2.0/authorize"
+	if disc.AuthorizationEndpoint != expectedAuth {
+		t.Errorf("expected auth endpoint %q, got %q", expectedAuth, disc.AuthorizationEndpoint)
+	}
+	expectedToken := "https://tunnel-123.ngrok-free.app/test-tenant/oauth2/v2.0/token"
+	if disc.TokenEndpoint != expectedToken {
+		t.Errorf("expected token endpoint %q, got %q", expectedToken, disc.TokenEndpoint)
 	}
 }
 

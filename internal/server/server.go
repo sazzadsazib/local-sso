@@ -13,6 +13,8 @@ import (
 type Server struct {
 	Web        embed.FS
 	Port       int
+	BaseURL    string // Optional explicit base URL override (e.g. "https://xxxx.ngrok-free.app")
+	IssuerMode string // "host" (default) or "entra"
 	KeyManager *idp.KeyManager
 	UserStore  *idp.UserStore
 	CodeStore  *idp.CodeStore

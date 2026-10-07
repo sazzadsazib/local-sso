@@ -179,6 +179,24 @@ func TestDiscovery(t *testing.T) {
 	if doc.JWKSURI != "http://127.0.0.1:8080/organizations/discovery/v2.0/keys" {
 		t.Errorf("unexpected jwks uri: %s", doc.JWKSURI)
 	}
+	if doc.Issuer != "http://127.0.0.1:8080/organizations/v2.0" {
+		t.Errorf("unexpected host issuer: %s", doc.Issuer)
+	}
+
+	// Test ngrok / HTTPS origin
+	ngrokDoc := idp.GenerateDiscoveryFromOrigin("https://my-app.ngrok-free.app", "common", "host")
+	if ngrokDoc.Issuer != "https://my-app.ngrok-free.app/common/v2.0" {
+		t.Errorf("unexpected ngrok issuer: %s", ngrokDoc.Issuer)
+	}
+	if ngrokDoc.AuthorizationEndpoint != "https://my-app.ngrok-free.app/common/oauth2/v2.0/authorize" {
+		t.Errorf("unexpected ngrok auth endpoint: %s", ngrokDoc.AuthorizationEndpoint)
+	}
+
+	// Test entra issuer mode
+	entraDoc := idp.GenerateDiscoveryFromOrigin("https://my-app.ngrok-free.app", "common", "entra")
+	if entraDoc.Issuer != "https://login.microsoftonline.com/common/v2.0" {
+		t.Errorf("unexpected entra issuer: %s", entraDoc.Issuer)
+	}
 }
 
 func split3(s string) []string {

@@ -6,21 +6,33 @@ import { icon } from '../components/icons';
 export function renderConfigView(container: HTMLElement) {
   const profile = getActiveProfile();
   const profiles = getProfiles();
-  const origin = window.location.origin;
+  const effectiveOrigin = (profile.host && profile.host.trim())
+    ? profile.host.trim().replace(/\/+$/, '')
+    : window.location.origin;
 
   const tenant = profile.tenant || 'common';
-  const authorityUrl = `${origin}/${tenant}`;
-  const discoveryUrl = `${origin}/${tenant}/v2.0/.well-known/openid-configuration`;
-  const authorizeUrl = `${origin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
+  const issuerMode = profile.issuerMode || 'host';
+  const issuerUrl = issuerMode === 'entra'
+    ? `https://login.microsoftonline.com/${tenant}/v2.0`
+    : `${effectiveOrigin}/${tenant}/v2.0`;
+
+  const authorityUrl = `${effectiveOrigin}/${tenant}`;
+  const discoveryUrl = `${effectiveOrigin}/${tenant}/v2.0/.well-known/openid-configuration`;
+  const authorizeUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
     profile.clientId
   )}&response_type=code&redirect_uri=${encodeURIComponent(
     profile.redirectUri
   )}&response_mode=query&scope=${encodeURIComponent(
     profile.scope
   )}&state=12345&nonce=67890`;
-  const tokenUrl = `${origin}/${tenant}/oauth2/v2.0/token`;
-  const jwksUrl = `${origin}/${tenant}/discovery/v2.0/keys`;
-  const logoutUrl = `${origin}/${tenant}/oauth2/v2.0/logout`;
+  const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
+  const jwksUrl = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
+  const logoutUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/logout`;
+
+  let knownHost = window.location.host;
+  try {
+    knownHost = new URL(effectiveOrigin).host;
+  } catch {}
 
   const msalSnippet = `// @azure/msal-browser / React MSAL configuration for local dev
 import { PublicClientApplication } from "@azure/msal-browser";
@@ -29,7 +41,7 @@ export const msalConfig = {
   auth: {
     clientId: "${profile.clientId}",
     authority: "${authorityUrl}",
-    knownAuthorities: ["${window.location.host}"],
+    knownAuthorities: ["${knownHost}"],
     redirectUri: "${profile.redirectUri}",
   },
   cache: {
@@ -145,6 +157,27 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
               </div>
 
               <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
+                  <span>Host Origin / Base URL</span>
+                  <span class="text-[10px] text-sky-400 font-normal">Active: ${effectiveOrigin}</span>
+                </label>
+                <input id="inputHost" type="text" placeholder="e.g. https://xxxx.ngrok-free.app or ${window.location.origin}" value="${profile.host || ''}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <p class="mt-1 text-[11px] text-slate-500">Base host origin for endpoints &amp; snippets. Configure with your ngrok HTTPS URL when exposing externally.</p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
+                  <span>OIDC Issuer Format</span>
+                  <span class="text-[10px] text-slate-500 font-normal font-mono truncate max-w-[200px]">${issuerUrl}</span>
+                </label>
+                <select id="selectIssuerMode" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                  <option value="host" ${issuerMode !== 'entra' ? 'selected' : ''}>Host Origin (${effectiveOrigin}/${tenant}/v2.0) [Recommended]</option>
+                  <option value="entra" ${issuerMode === 'entra' ? 'selected' : ''}>Microsoft Entra ID (https://login.microsoftonline.com/${tenant}/v2.0)</option>
+                </select>
+                <p class="mt-1 text-[11px] text-slate-500">Specifies the <code class="text-slate-400">iss</code> claim in ID tokens and discovery document.</p>
+              </div>
+
+              <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1.5">OAuth Scopes</label>
                 <input id="inputScope" type="text" value="${profile.scope}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
@@ -174,6 +207,15 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
 
             <div class="space-y-3 text-xs font-mono">
               
+              <!-- OIDC Issuer -->
+              <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1 overflow-hidden">
+                  <span class="text-slate-400 font-sans block text-[11px] mb-0.5">OIDC Token Issuer (iss claim)</span>
+                  <span class="text-slate-200 truncate block">${issuerUrl}</span>
+                </div>
+                <button data-copy="${issuerUrl}" class="copy-btn shrink-0 p-2 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy">${icon('clipboard', 'w-3.5 h-3.5')}</button>
+              </div>
+
               <!-- Authority -->
               <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
                 <div class="min-w-0 flex-1 overflow-hidden">
@@ -286,6 +328,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       clientId: '00000000-0000-0000-0000-000000000002',
       redirectUri: 'http://localhost:3000/callback',
       scope: 'openid profile email offline_access',
+      host: '',
+      issuerMode: 'host',
     };
     saveActiveProfile(newP);
     renderConfigView(container);
@@ -300,6 +344,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       clientId: (document.getElementById('inputClientId') as HTMLInputElement).value,
       redirectUri: (document.getElementById('inputRedirectUri') as HTMLInputElement).value,
       scope: (document.getElementById('inputScope') as HTMLInputElement).value,
+      host: (document.getElementById('inputHost') as HTMLInputElement).value.trim(),
+      issuerMode: (document.getElementById('selectIssuerMode') as HTMLSelectElement).value as 'host' | 'entra',
     };
     saveActiveProfile(updated);
     renderConfigView(container);

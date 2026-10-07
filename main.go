@@ -23,6 +23,8 @@ var webFS embed.FS
 func main() {
 	portFlag := flag.Int("port", 8080, "Port to listen on (localhost only)")
 	tenantFlag := flag.String("tenant", "common", "Default tenant alias or GUID")
+	baseURLFlag := flag.String("base-url", "", "Override base URL for OIDC metadata (e.g. https://xxxx.ngrok-free.app)")
+	issuerModeFlag := flag.String("issuer-mode", "host", "Issuer format: 'host' (default, uses host origin) or 'entra' (https://login.microsoftonline.com/{tenant}/v2.0)")
 	noBrowser := flag.Bool("no-browser", false, "Do not attempt to open browser automatically")
 	flag.Parse()
 
@@ -33,6 +35,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %v", err)
 	}
+	srvInst.BaseURL = *baseURLFlag
+	srvInst.IssuerMode = *issuerModeFlag
 
 	mux := srvInst.Handler()
 	httpServer := &http.Server{

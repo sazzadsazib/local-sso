@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"net"
 	"net/http"
 	"net/url"
 	"sso-local/internal/idp"
-	"strconv"
 	"strings"
 )
 
@@ -22,31 +20,65 @@ func extractTenant(path string) string {
 	return "common"
 }
 
-// publicHostPort derives the externally reachable host/port from the request
-// Host header so discovery documents stay correct when sso-local runs behind a
-// reverse proxy (e.g. the Vite dev server). A port of 0 means "default HTTP
-// port" and is omitted from generated URLs.
-func publicHostPort(r *http.Request, fallbackPort int) (string, int) {
-	h := r.Host
-	if h == "" {
-		return "127.0.0.1", fallbackPort
+// requestOrigin derives the externally reachable origin (scheme://host[:port]) from the request.
+// It inspects BaseURL override, reverse-proxy headers (X-Forwarded-Proto, X-Forwarded-Host),
+// and falls back to r.Host and server Port.
+func (s *Server) requestOrigin(r *http.Request) string {
+	if s.BaseURL != "" {
+		return strings.TrimRight(s.BaseURL, "/")
 	}
-	if host, port, err := net.SplitHostPort(h); err == nil && host != "" {
-		if p, err := strconv.Atoi(port); err == nil {
-			if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
-				host = "[" + host + "]"
-			}
-			return host, p
+
+	// 1. Determine scheme
+	scheme := "http"
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		parts := strings.Split(proto, ",")
+		scheme = strings.ToLower(strings.TrimSpace(parts[0]))
+	} else if r.TLS != nil || r.URL.Scheme == "https" {
+		scheme = "https"
+	}
+
+	// 2. Determine host
+	host := r.Header.Get("X-Forwarded-Host")
+	if host != "" {
+		parts := strings.Split(host, ",")
+		host = strings.TrimSpace(parts[0])
+	} else {
+		host = r.Host
+	}
+
+	if host == "" {
+		host = fmt.Sprintf("127.0.0.1:%d", s.Port)
+	} else if !strings.Contains(host, ":") {
+		// If hostname is loopback without an explicit port, append server listen port
+		h := strings.ToLower(host)
+		if (h == "localhost" || h == "127.0.0.1" || h == "::1") && s.Port > 0 && s.Port != 80 && s.Port != 443 {
+			host = fmt.Sprintf("%s:%d", host, s.Port)
 		}
 	}
-	return h, 0
+
+	return fmt.Sprintf("%s://%s", scheme, host)
+}
+
+// resolveIssuerMode determines whether to use "host" (default) or "entra" issuer format.
+func (s *Server) resolveIssuerMode(r *http.Request) string {
+	if q := r.URL.Query().Get("issuer_mode"); q != "" {
+		return q
+	}
+	if h := r.Header.Get("X-Issuer-Mode"); h != "" {
+		return h
+	}
+	if s.IssuerMode != "" {
+		return s.IssuerMode
+	}
+	return "host"
 }
 
 // HandleDiscoveryEndpoint serves OIDC discovery JSON for the requested tenant.
 func (s *Server) HandleDiscoveryEndpoint(w http.ResponseWriter, r *http.Request) {
 	tenant := extractTenant(r.URL.Path)
-	host, port := publicHostPort(r, s.Port)
-	doc := idp.GenerateDiscovery(host, port, tenant)
+	origin := s.requestOrigin(r)
+	issuerMode := s.resolveIssuerMode(r)
+	doc := idp.GenerateDiscoveryFromOrigin(origin, tenant, issuerMode)
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -348,7 +380,10 @@ func (s *Server) HandleTokenEndpoint(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		issuer := fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
+		issuer := fmt.Sprintf("%s/%s/v2.0", s.requestOrigin(r), tenant)
+		if s.resolveIssuerMode(r) == "entra" {
+			issuer = fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
+		}
 		tokenResp, err := s.Signer.GenerateTokens(codeData.User, codeData.ClientID, tenant, codeData.Nonce, codeData.Scope, issuer)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -384,7 +419,10 @@ func (s *Server) HandleTokenEndpoint(w http.ResponseWriter, r *http.Request) {
 		if scope == "" {
 			scope = "openid profile email offline_access"
 		}
-		issuer := fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
+		issuer := fmt.Sprintf("%s/%s/v2.0", s.requestOrigin(r), tenant)
+		if s.resolveIssuerMode(r) == "entra" {
+			issuer = fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
+		}
 		tokenResp, err := s.Signer.GenerateTokens(user, clientID, tenant, "", scope, issuer)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

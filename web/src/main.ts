@@ -24,9 +24,11 @@ async function handleCallbackIfPresent(): Promise<boolean> {
   if (code) {
     const pkce = getPKCEState();
     const profile = getActiveProfile();
-    const origin = window.location.origin;
+    const effectiveOrigin = (profile.host && profile.host.trim())
+      ? profile.host.trim().replace(/\/+$/, '')
+      : window.location.origin;
     const tenant = pkce?.tenant || profile.tenant || 'common';
-    const tokenUrl = `${origin}/${tenant}/oauth2/v2.0/token`;
+    const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
 
     // Render interactive visual callback card
     app.innerHTML = `

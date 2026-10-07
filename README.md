@@ -174,9 +174,12 @@ Open the dashboard at [`http://127.0.0.1:8080/#config`](http://127.0.0.1:8080/#c
 | `Client ID` | Any value works (mock IdP, no app registration) | `00000000-0000-0000-0000-000000000001` |
 | `Redirect URI` | **Your frontend's callback route** — this is where the auth code is sent | `http://localhost:3000/callback` |
 | `Tenant` | Alias or GUID used in every URL | `common` or `72f988bf-86f1-41af-91ab-2d7cd011db47` |
+| `Host Origin / Base URL` | Custom host origin for ngrok tunnels or remote testing | `https://xxxx.ngrok-free.app` or `http://localhost:8080` |
+| `OIDC Issuer Format` | Format for `iss` claim and discovery (`host` origin or `entra`) | `Host Origin ({host}/{tenant}/v2.0)` |
 | `Scope` | Space-separated scopes | `openid profile email offline_access` |
 
 > **Important:** The **same** `redirect_uri` and `client_id` must be used in the authorize request **and** in the token exchange, otherwise the code exchange fails with `invalid_grant`.
+> **Ngrok Tunnel Support:** When running `ngrok http 8080`, simply set `Host Origin / Base URL` to your ngrok URL (`https://...ngrok-free.app`). All endpoints, cURL commands, and MSAL snippets will immediately update to your ngrok origin. The Go backend automatically parses `X-Forwarded-Proto` and `X-Forwarded-Host` headers as well.
 
 Copy the pre-assembled **Authorize URL** from the `#config` banner:
 
