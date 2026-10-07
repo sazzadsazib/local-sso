@@ -1,4 +1,4 @@
-import { getActiveProfile, getSession, saveSession, clearSession, savePKCEState } from '../storage';
+import { getActiveProject, getSession, saveSession, clearSession, savePKCEState } from '../storage';
 import { decodeJWT, exchangeToken, verifyIDToken, fetchMockUsers } from '../api';
 import { showToast } from '../components/toast';
 import { icon } from '../components/icons';
@@ -34,12 +34,12 @@ function base64UrlEncode(bytes: Uint8Array): string {
 }
 
 export async function renderLoginView(container: HTMLElement) {
-  const profile = getActiveProfile();
+  const project = getActiveProject();
   const session = getSession();
-  const effectiveOrigin = (profile.host && profile.host.trim())
-    ? profile.host.trim().replace(/\/+$/, '')
+  const effectiveOrigin = (project.host && project.host.trim())
+    ? project.host.trim().replace(/\/+$/, '')
     : window.location.origin;
-  const tenant = profile.tenant || 'common';
+  const tenant = project.tenant || 'common';
 
   let mockUsers: MockUser[] = [];
   try {
@@ -89,7 +89,7 @@ export async function renderLoginView(container: HTMLElement) {
 
               <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1.5">Requested OAuth Scopes</label>
-                <input id="inputTestScope" type="text" value="${profile.scope}" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <input id="inputTestScope" type="text" value="${project.scope}" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -170,7 +170,7 @@ export async function renderLoginView(container: HTMLElement) {
 
       const redirectUri = `${window.location.origin}/callback`;
       let authUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
-        profile.clientId
+        project.clientId
       )}&response_type=code&redirect_uri=${encodeURIComponent(
         redirectUri
       )}&response_mode=query&scope=${encodeURIComponent(
@@ -195,7 +195,7 @@ export async function renderLoginView(container: HTMLElement) {
   const decodedId = session.id_token ? decodeJWT(session.id_token) : null;
   const decodedAccess = session.access_token ? decodeJWT(session.access_token) : null;
 
-  const authBearerCurl = `curl -X GET "http://127.0.0.1:${window.location.port || '8080'}/api/users" \\
+  const authBearerCurl = `curl -X GET "http://localhost:${window.location.port || '8080'}/api/users" \\
   -H "Authorization: Bearer ${session.access_token}"`;
 
   container.innerHTML = `
@@ -348,10 +348,10 @@ export async function renderLoginView(container: HTMLElement) {
 
     try {
       const jwksUri = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
-      const issuer = profile.issuerMode === 'entra'
+      const issuer = project.issuerMode === 'entra'
         ? `https://login.microsoftonline.com/${tenant}/v2.0`
         : `${effectiveOrigin}/${tenant}/v2.0`;
-      const res = await verifyIDToken(session.id_token, jwksUri, issuer, profile.clientId);
+      const res = await verifyIDToken(session.id_token, jwksUri, issuer, project.clientId);
 
       if (res.verified) {
         alertEl.className = 'p-4 rounded-xl border bg-emerald-950/60 border-emerald-500/40 text-emerald-200 text-xs font-mono block';
@@ -377,9 +377,9 @@ export async function renderLoginView(container: HTMLElement) {
       const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
       const newTokens = await exchangeToken(tokenUrl, {
         grant_type: 'refresh_token',
-        client_id: profile.clientId,
+        client_id: project.clientId,
         refresh_token: session.refresh_token,
-        scope: profile.scope,
+        scope: project.scope,
       });
 
       saveSession({

@@ -47,7 +47,7 @@ func (s *Server) requestOrigin(r *http.Request) string {
 	}
 
 	if host == "" {
-		host = fmt.Sprintf("127.0.0.1:%d", s.Port)
+		host = fmt.Sprintf("localhost:%d", s.Port)
 	} else if !strings.Contains(host, ":") {
 		// If hostname is loopback without an explicit port, append server listen port
 		h := strings.ToLower(host)
@@ -316,7 +316,7 @@ func (s *Server) HandleIDPLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) completeAuthorize(w http.ResponseWriter, r *http.Request, clientID, redirectURI, codeChallenge, codeChallengeMethod, nonce, scope, state, tenant string, user idp.MockUser) {
 	if redirectURI == "" {
-		redirectURI = fmt.Sprintf("http://127.0.0.1:%d/callback", s.Port)
+		redirectURI = fmt.Sprintf("http://localhost:%d/callback", s.Port)
 	}
 
 	code, err := s.CodeStore.CreateCode(clientID, redirectURI, codeChallenge, codeChallengeMethod, nonce, scope, tenant, user)

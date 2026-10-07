@@ -4,7 +4,7 @@
 
 Developed by **[Sazzad Sazib](https://github.com/sazzadsazib)** ([@sazzadsazib](https://github.com/sazzadsazib)).
 
-`sso-local` eliminates the friction of creating Azure/Entra app registrations and enterprise tenant configurations during local development. It runs a zero-dependency local OAuth2 / OpenID Connect server on `http://127.0.0.1:8080` that emits Microsoft Entra v2.0-compatible tokens, serves standard discovery and JWKS endpoints, and provides a modern embedded web UI (TypeScript & Tailwind CSS, Vercel-style glassmorphism) to manage mock users, copy frontend integration URLs, and test authentication flows right inside the browser.
+`sso-local` eliminates the friction of creating Azure/Entra app registrations and enterprise tenant configurations during local development. It runs a zero-dependency local OAuth2 / OpenID Connect server on `http://localhost:8080` that emits Microsoft Entra v2.0-compatible tokens, serves standard discovery and JWKS endpoints, and provides a modern embedded web UI (TypeScript & Tailwind CSS, Vercel-style glassmorphism) to manage mock users, copy frontend integration URLs, and test authentication flows right inside the browser.
 
 ---
 
@@ -93,12 +93,12 @@ go run . -port 8080
 
 ### Option D — Development mode (UI + API on ONE port, hot reload)
 ```bash
-./run.sh                  # everything on http://127.0.0.1:8080
+./run.sh                  # everything on http://localhost:8080
 PORT=3000 ./run.sh        # pick a different single port
 GO_PORT=9091 ./run.sh     # pin the internal (auto-picked 8081-8100 otherwise)
 ```
 
-One public port serves **everything** — open **`http://127.0.0.1:8080/#config`**:
+One public port serves **everything** — open **`http://localhost:8080/#config`**:
 
 | On port `PORT` (default 8080) | Routed to |
 |---|---|
@@ -106,8 +106,8 @@ One public port serves **everything** — open **`http://127.0.0.1:8080/#config`
 | `/api/*`, `/callback` | proxied to the internal Go IdP |
 | `/{tenant}/oauth2/*`, `/{tenant}/v2.0/*`, `/{tenant}/discovery/*` | proxied to the internal Go IdP |
 
-* The Go IdP listens on an internal port (`127.0.0.1:8081+`, auto-picked, `GO_PORT` to pin) — the browser never talks to it directly, so `window.location.origin` based redirect URLs stay on the single public port.
-* Discovery documents advertise the public `host:port` they were requested on (Go reads the `Host` header through the proxy), so `authorization_endpoint` / `token_endpoint` / `jwks_uri` all point at `http://127.0.0.1:8080/...`.
+* The Go IdP listens on an internal port (`localhost:8081+`, auto-picked, `GO_PORT` to pin) — the browser never talks to it directly, so `window.location.origin` based redirect URLs stay on the single public port.
+* Discovery documents advertise the public `host:port` they were requested on (Go reads the `Host` header through the proxy), so `authorization_endpoint` / `token_endpoint` / `jwks_uri` all point at `http://localhost:8080/...`.
 * Edit anything under `web/src/**` and the page hot-reloads — no `npm run build`, no `go build`.
 * The Go server is compiled to `.dev/sso-local-dev` (git-ignored) before starting, so a compile error stops the run immediately instead of serving a stale binary.
 * `Ctrl+C` stops **both** processes.
@@ -124,24 +124,24 @@ cp .env.example .env   # then edit the values
 |---|---|---|
 | `PORT` | `8080` | Public port serving UI + API + OIDC (what you open) |
 | `GO_PORT` | auto (`8081`-`8100`) | Internal loopback port for the Go IdP, proxied by Vite |
-| `SSO_BACKEND` | `http://127.0.0.1:$GO_PORT` | Vite proxy target (only override for an external Go server) |
+| `SSO_BACKEND` | `http://localhost:$GO_PORT` | Vite proxy target (only override for an external Go server) |
 | `TENANT` | `common` | Default tenant alias or GUID passed to `sso-local -tenant` |
 
 `./run.sh` loads `.env` automatically; variables already exported in your shell win over the file.
 
-On startup the server binds to `127.0.0.1` only and prints:
+On startup the server binds to `localhost` only and prints:
 
 ```
 ================================================================
   sso-local — Local Mock Microsoft Entra ID (OIDC) & SSO Playground
 ================================================================
-  -> Web Dashboard:    http://127.0.0.1:8080/#config
-  -> Mock Users:       http://127.0.0.1:8080/#users
-  -> Test Client:      http://127.0.0.1:8080/#login
-  -> OIDC Discovery:   http://127.0.0.1:8080/common/v2.0/.well-known/openid-configuration
-  -> Authorize URL:    http://127.0.0.1:8080/common/oauth2/v2.0/authorize
-  -> Token URL:        http://127.0.0.1:8080/common/oauth2/v2.0/token
-  -> JWKS Keys URL:    http://127.0.0.1:8080/common/discovery/v2.0/keys
+  -> Web Dashboard:    http://localhost:8080/#config
+  -> Mock Users:       http://localhost:8080/#users
+  -> Test Client:      http://localhost:8080/#login
+  -> OIDC Discovery:   http://localhost:8080/common/v2.0/.well-known/openid-configuration
+  -> Authorize URL:    http://localhost:8080/common/oauth2/v2.0/authorize
+  -> Token URL:        http://localhost:8080/common/oauth2/v2.0/token
+  -> JWKS Keys URL:    http://localhost:8080/common/discovery/v2.0/keys
 ================================================================
 ```
 
@@ -149,7 +149,7 @@ On startup the server binds to `127.0.0.1` only and prints:
 
 | Flag | Default | Description | Example |
 |---|---|---|---|
-| `-port` | `8080` | Port to listen on (`127.0.0.1:<port>`) | `sso-local -port 3000` |
+| `-port` | `8080` | Port to listen on (`localhost:<port>`) | `sso-local -port 3000` |
 | `-tenant` | `common` | Default tenant alias or GUID | `sso-local -tenant my-tenant-id` |
 | `-no-browser` | `false` | Do not auto-open the browser | `sso-local -no-browser` |
 
@@ -167,7 +167,7 @@ On startup the server binds to `127.0.0.1` only and prints:
 
 ### Step 2 — Update the redirect URL (client config)
 
-Open the dashboard at [`http://127.0.0.1:8080/#config`](http://127.0.0.1:8080/#config) and edit the active **Profile Settings**:
+Open the dashboard at [`http://localhost:8080/#config`](http://localhost:8080/#config) and edit the active **Profile Settings**:
 
 | Field | Meaning | Example |
 |---|---|---|
@@ -184,7 +184,7 @@ Open the dashboard at [`http://127.0.0.1:8080/#config`](http://127.0.0.1:8080/#c
 Copy the pre-assembled **Authorize URL** from the `#config` banner:
 
 ```text
-http://127.0.0.1:8080/common/oauth2/v2.0/authorize?client_id=00000000-0000-0000-0000-000000000001&response_type=code&redirect_uri=http://localhost:3000/callback&response_mode=query&scope=openid+profile+email+offline_access&state=12345&nonce=67890&code_challenge=...&code_challenge_method=S256
+http://localhost:8080/common/oauth2/v2.0/authorize?client_id=00000000-0000-0000-0000-000000000001&response_type=code&redirect_uri=http://localhost:3000/callback&response_mode=query&scope=openid+profile+email+offline_access&state=12345&nonce=67890&code_challenge=...&code_challenge_method=S256
 ```
 
 ### Step 3 — Authorize the app (sign the user in)
@@ -200,7 +200,7 @@ http://127.0.0.1:8080/common/oauth2/v2.0/authorize?client_id=00000000-0000-0000-
 **A. Direct token endpoint** (server-side exchange, confidential or PKCE public client):
 
 ```bash
-curl -X POST http://127.0.0.1:8080/common/oauth2/v2.0/token \
+curl -X POST http://localhost:8080/common/oauth2/v2.0/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
   -d "client_id=00000000-0000-0000-0000-000000000001" \
@@ -212,11 +212,11 @@ curl -X POST http://127.0.0.1:8080/common/oauth2/v2.0/token \
 **B. Via the mock API proxy** (browser-side, CORS-friendly — use this from SPA/mocks):
 
 ```ts
-const res = await fetch("http://127.0.0.1:8080/api/token", {
+const res = await fetch("http://localhost:8080/api/token", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    token_url: "http://127.0.0.1:8080/common/oauth2/v2.0/token",
+    token_url: "http://localhost:8080/common/oauth2/v2.0/token",
     client_id: "00000000-0000-0000-0000-000000000001",
     code: codeFromCallback,
     code_verifier: pkceVerifier,
@@ -231,12 +231,12 @@ const session = await res.json(); // access_token, id_token, refresh_token, ...
 ### Step 5 — Verify tokens (optional)
 
 ```ts
-await fetch("http://127.0.0.1:8080/api/verify", {
+await fetch("http://localhost:8080/api/verify", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
     id_token: session.id_token,
-    jwks_uri: "http://127.0.0.1:8080/common/discovery/v2.0/keys",
+    jwks_uri: "http://localhost:8080/common/discovery/v2.0/keys",
     issuer: "https://login.microsoftonline.com/common/v2.0", // as reported by discovery
     audience: "00000000-0000-0000-0000-000000000001",
   }),
@@ -265,8 +265,8 @@ import { PublicClientApplication, Configuration } from "@azure/msal-browser";
 export const msalConfig: Configuration = {
   auth: {
     clientId: "00000000-0000-0000-0000-000000000001",
-    authority: "http://127.0.0.1:8080/common",
-    knownAuthorities: ["127.0.0.1:8080"],
+    authority: "http://localhost:8080/common",
+    knownAuthorities: ["localhost:8080"],
     redirectUri: "http://localhost:3000/callback",
   },
   cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false },
@@ -275,7 +275,7 @@ export const msalConfig: Configuration = {
 export const msalInstance = new PublicClientApplication(msalConfig);
 ```
 
-> Keep `knownAuthorities` pointing at `127.0.0.1:8080` — MSAL otherwise rejects an unknown authority.
+> Keep `knownAuthorities` pointing at `localhost:8080` — MSAL otherwise rejects an unknown authority.
 
 ---
 
@@ -316,7 +316,7 @@ CORS is fully open (`Access-Control-Allow-Origin: *`) so these work straight fro
 
 `sso-local` includes a built-in interactive test suite so you can verify OAuth2 / OIDC authentication flows and token generation without writing any frontend code first:
 
-1. **Open the Test Client**: navigate to [`http://127.0.0.1:8080/#login`](http://127.0.0.1:8080/#login).
+1. **Open the Test Client**: navigate to [`http://localhost:8080/#login`](http://localhost:8080/#login).
 2. **Configure Test Parameters**:
    * Select which Mock User to sign in as (e.g. `Alex Wilber`, `Megan Bowen`, or the interactive account picker).
    * Customize requested OAuth scopes (e.g. `openid profile email offline_access User.Read`).
@@ -335,13 +335,12 @@ CORS is fully open (`Access-Control-Allow-Origin: *`) so these work straight fro
 
 ## 7. Mock User Directory
 
-`sso-local` comes pre-configured with realistic Microsoft personas:
+`sso-local` comes pre-configured with default seed users:
 
-* **Alex Wilber** (`alexw@contoso.onmicrosoft.com`) — Global Administrator
-* **Megan Bowen** (`meganb@contoso.onmicrosoft.com`) — Application Developer
-* **Adele Vance** (`adelev@contoso.onmicrosoft.com`) — Security Auditor
+* **Sazzad Sazib** (`sazib@gmail.com`) — Global Administrator
+* **Iftekhar Rifat** (`rifat@gmail.com`) — Application Developer / Senior Software Engineer
 
-Create, edit, or delete custom users and custom token claims anytime via `http://127.0.0.1:8080/#users` (backed by the `/api/users` endpoints).
+Create, edit, or delete custom users and custom token claims anytime via `http://localhost:8080/#users` (backed by the `/api/users` endpoints).
 
 ---
 
@@ -355,4 +354,4 @@ go test -v ./...
 
 ## Security Notice
 
-`sso-local` binds exclusively to `127.0.0.1` (loopback) and is strictly intended for local software development and testing. Do not expose this service to public networks.
+`sso-local` binds exclusively to `localhost` (loopback) and is strictly intended for local software development and testing. Do not expose this service to public networks.

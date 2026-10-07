@@ -2,7 +2,7 @@ import { fetchMockUsers, createMockUser, updateMockUser, deleteMockUser } from '
 import { MockUser } from '../types';
 import { showToast } from '../components/toast';
 import { icon } from '../components/icons';
-import { getActiveProfile } from '../storage';
+import { getActiveProject } from '../storage';
 
 export async function renderUsersView(container: HTMLElement) {
   container.innerHTML = `
@@ -97,14 +97,14 @@ export async function renderUsersView(container: HTMLElement) {
       document.querySelectorAll('.btn-quick-login').forEach((btn) => {
         btn.addEventListener('click', () => {
           const email = btn.getAttribute('data-login') || '';
-          const profile = getActiveProfile();
+          const project = getActiveProject();
           const origin = window.location.origin;
-          const tenant = profile.tenant || 'common';
+          const tenant = project.tenant || 'common';
           const authUrl = `${origin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
-            profile.clientId
+            project.clientId
           )}&response_type=code&redirect_uri=${encodeURIComponent(
-            profile.redirectUri
-          )}&scope=${encodeURIComponent(profile.scope)}&login_hint=${encodeURIComponent(email)}&prompt=none`;
+            project.redirectUri
+          )}&scope=${encodeURIComponent(project.scope)}&login_hint=${encodeURIComponent(email)}&prompt=none`;
           window.location.href = authUrl;
         });
       });
@@ -148,22 +148,22 @@ export async function renderUsersView(container: HTMLElement) {
         <form id="userForm" class="space-y-3 text-left">
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Display Name</label>
-            <input id="userName" type="text" required value="${user?.name || ''}" placeholder="e.g. Alex Wilber" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            <input id="userName" type="text" required value="${user?.name || ''}" placeholder="e.g. Sazzad Sazib" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
           </div>
 
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Email / Preferred Username</label>
-            <input id="userEmail" type="email" required value="${user?.email || ''}" placeholder="e.g. alexw@contoso.onmicrosoft.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            <input id="userEmail" type="email" required value="${user?.email || ''}" placeholder="e.g. sazib@gmail.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-400 mb-1">Given Name</label>
-              <input id="userGivenName" type="text" value="${user?.given_name || ''}" placeholder="Alex" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+              <input id="userGivenName" type="text" value="${user?.given_name || ''}" placeholder="Sazzad" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-400 mb-1">Family Name</label>
-              <input id="userFamilyName" type="text" value="${user?.family_name || ''}" placeholder="Wilber" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+              <input id="userFamilyName" type="text" value="${user?.family_name || ''}" placeholder="Sazib" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
             </div>
           </div>
 

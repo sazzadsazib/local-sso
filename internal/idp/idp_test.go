@@ -100,14 +100,18 @@ func TestSignerAndVerification(t *testing.T) {
 func TestUserStore(t *testing.T) {
 	store := idp.NewUserStore()
 	users := store.List()
-	if len(users) < 3 {
-		t.Errorf("expected at least 3 initial seeded users, got %d", len(users))
+	if len(users) < 2 {
+		t.Errorf("expected at least 2 initial seeded users, got %d", len(users))
 	}
 
 	// Test Get
-	u, ok := store.Get("alexw@contoso.onmicrosoft.com")
-	if !ok || u.DisplayName != "Alex Wilber" {
-		t.Errorf("failed to get alexw: ok=%v, user=%+v", ok, u)
+	u, ok := store.Get("rifat@gmail.com")
+	if !ok || u.DisplayName != "Iftekhar Rifat" {
+		t.Errorf("failed to get rifat: ok=%v, user=%+v", ok, u)
+	}
+	u2, ok2 := store.Get("sazib@gmail.com")
+	if !ok2 || u2.DisplayName != "Sazzad Sazib" {
+		t.Errorf("failed to get sazib: ok=%v, user=%+v", ok2, u2)
 	}
 
 	// Test Create

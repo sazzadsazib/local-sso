@@ -1,8 +1,9 @@
 import { renderNavbar } from './components/navbar';
+import { renderProjectsView } from './views/projects';
 import { renderConfigView } from './views/config';
 import { renderUsersView } from './views/users';
 import { renderLoginView } from './views/login';
-import { getPKCEState, saveSession, clearPKCEState, saveActiveProfile, getActiveProfile } from './storage';
+import { getPKCEState, saveSession, clearPKCEState, saveActiveProject, getActiveProject } from './storage';
 import { exchangeToken } from './api';
 import { showToast } from './components/toast';
 import { icon } from './components/icons';
@@ -23,11 +24,11 @@ async function handleCallbackIfPresent(): Promise<boolean> {
 
   if (code) {
     const pkce = getPKCEState();
-    const profile = getActiveProfile();
-    const effectiveOrigin = (profile.host && profile.host.trim())
-      ? profile.host.trim().replace(/\/+$/, '')
+    const project = getActiveProject();
+    const effectiveOrigin = (project.host && project.host.trim())
+      ? project.host.trim().replace(/\/+$/, '')
       : window.location.origin;
-    const tenant = pkce?.tenant || profile.tenant || 'common';
+    const tenant = pkce?.tenant || project.tenant || 'common';
     const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
 
     // Render interactive visual callback card
@@ -64,7 +65,7 @@ async function handleCallbackIfPresent(): Promise<boolean> {
     try {
       const tokenResp = await exchangeToken(tokenUrl, {
         grant_type: 'authorization_code',
-        client_id: profile.clientId,
+        client_id: project.clientId,
         code: code,
         code_verifier: pkce?.verifier || '',
         redirect_uri: `${origin}/callback`,
@@ -106,15 +107,15 @@ function handleDeepLink() {
     const cfg = params.get('cfg');
     const auto = params.get('auto');
 
-    if (cfg) {
-      try {
-        const decoded = JSON.parse(atob(cfg.replace(/-/g, '+').replace(/_/g, '/')));
-        saveActiveProfile(decoded);
-        showToast('Imported profile from launcher link');
-      } catch (e) {
-        console.error('Failed to parse cfg deep link', e);
-      }
-    }
+     if (cfg) {
+       try {
+         const decoded = JSON.parse(atob(cfg.replace(/-/g, '+').replace(/_/g, '/')));
+         saveActiveProject(decoded);
+         showToast('Imported project from launcher link');
+       } catch (e) {
+         console.error('Failed to parse cfg deep link', e);
+       }
+     }
 
     if (auto === '1') {
       window.location.hash = '#login';
@@ -135,11 +136,11 @@ async function route() {
 
   handleDeepLink();
 
-  let hash = window.location.hash.replace(/^#\/?/, '').split('?')[0];
-  if (!hash || (hash !== 'config' && hash !== 'users' && hash !== 'login')) {
-    hash = 'config';
-    window.location.hash = '#config';
-  }
+   let hash = window.location.hash.replace(/^#\/?/, '').split('?')[0];
+   if (!hash || (hash !== 'projects' && hash !== 'config' && hash !== 'users' && hash !== 'login')) {
+     hash = 'projects';
+     window.location.hash = '#projects';
+   }
 
   app.innerHTML = `
     ${renderNavbar(hash)}
@@ -161,17 +162,20 @@ async function route() {
 
   const viewContainer = document.getElementById('view-container')!;
 
-  switch (hash) {
-    case 'config':
-      renderConfigView(viewContainer);
-      break;
-    case 'users':
-      await renderUsersView(viewContainer);
-      break;
-    case 'login':
-      await renderLoginView(viewContainer);
-      break;
-  }
+   switch (hash) {
+     case 'projects':
+       renderProjectsView(viewContainer);
+       break;
+     case 'config':
+       renderConfigView(viewContainer);
+       break;
+     case 'users':
+       await renderUsersView(viewContainer);
+       break;
+     case 'login':
+       await renderLoginView(viewContainer);
+       break;
+   }
 }
 
 window.addEventListener('hashchange', () => {

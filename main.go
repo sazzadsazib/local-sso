@@ -56,19 +56,19 @@ func main() {
 	fmt.Println("================================================================")
 	fmt.Println("  sso-local — Local Mock Microsoft Entra ID (OIDC) & SSO Playground")
 	fmt.Println("================================================================")
-	fmt.Printf("  -> Web Dashboard:    http://127.0.0.1:%d/#config\n", port)
-	fmt.Printf("  -> Mock Users:       http://127.0.0.1:%d/#users\n", port)
-	fmt.Printf("  -> Test Client:      http://127.0.0.1:%d/#login\n", port)
+	fmt.Printf("  -> Web Dashboard:    http://localhost:%d/#projects\n", port)
+	fmt.Printf("  -> Mock Users:       http://localhost:%d/#users\n", port)
+	fmt.Printf("  -> Test Client:      http://localhost:%d/#login\n", port)
 	fmt.Println("----------------------------------------------------------------")
-	fmt.Printf("  -> OIDC Discovery:   http://127.0.0.1:%d/%s/v2.0/.well-known/openid-configuration\n", port, *tenantFlag)
-	fmt.Printf("  -> Authorize URL:    http://127.0.0.1:%d/%s/oauth2/v2.0/authorize\n", port, *tenantFlag)
-	fmt.Printf("  -> Token URL:        http://127.0.0.1:%d/%s/oauth2/v2.0/token\n", port, *tenantFlag)
-	fmt.Printf("  -> JWKS Keys URL:    http://127.0.0.1:%d/%s/discovery/v2.0/keys\n", port, *tenantFlag)
+	fmt.Printf("  -> OIDC Discovery:   http://localhost:%d/%s/v2.0/.well-known/openid-configuration\n", port, *tenantFlag)
+	fmt.Printf("  -> Authorize URL:    http://localhost:%d/%s/oauth2/v2.0/authorize\n", port, *tenantFlag)
+	fmt.Printf("  -> Token URL:        http://localhost:%d/%s/oauth2/v2.0/token\n", port, *tenantFlag)
+	fmt.Printf("  -> JWKS Keys URL:    http://localhost:%d/%s/discovery/v2.0/keys\n", port, *tenantFlag)
 	fmt.Println("================================================================")
 	fmt.Println("Press Ctrl+C to stop.")
 
 	if !*noBrowser {
-		go openBrowser(fmt.Sprintf("http://127.0.0.1:%d/#config", port))
+		go openBrowser(fmt.Sprintf("http://localhost:%d/#projects", port))
 	}
 
 	done := make(chan struct{})

@@ -1,14 +1,15 @@
 import { Profile, PKCEState, TokenSession } from './types';
 
-const PROFILES_KEY = 'ssoLocal.profiles';
-const ACTIVE_PROFILE_KEY = 'ssoLocal.activeProfile';
+const PROJECTS_KEY = 'ssoLocal.projects';
+const ACTIVE_PROJECT_KEY = 'ssoLocal.activeProject';
 const PKCE_KEY = 'ssoLocal.pkce';
 const SESSION_KEY = 'ssoLocal.session';
 
-const defaultProfiles: Profile[] = [
+const defaultProjects: Profile[] = [
   {
     id: 'default-entra',
-    name: 'Microsoft Entra ID (Local Mock)',
+    name: 'Portal SSO',
+    rootUrl: 'http://localhost:3000',
     provider: 'entra',
     tenant: 'common',
     clientId: '00000000-0000-0000-0000-000000000001',
@@ -20,67 +21,85 @@ const defaultProfiles: Profile[] = [
   },
   {
     id: 'contoso-tenant',
-    name: 'Contoso Enterprise Tenant',
+    name: 'Portal Contoso Enterprise SSO',
+    rootUrl: 'http://localhost:8080',
     provider: 'entra',
     tenant: '72f988bf-86f1-41af-91ab-2d7cd011db47',
     clientId: 'client-app-contoso-123',
-    redirectUri: 'http://127.0.0.1:8080/callback',
+    redirectUri: 'http://localhost:8080/callback',
     scope: 'openid profile email offline_access User.Read',
     host: '',
     issuerMode: 'host',
   }
 ];
 
-export function getProfiles(): Profile[] {
+export function getProjects(): Profile[] {
   try {
-    const raw = localStorage.getItem(PROFILES_KEY);
+    const raw = localStorage.getItem(PROJECTS_KEY);
     if (!raw) {
-      saveProfiles(defaultProfiles);
-      return defaultProfiles;
+      saveProjects(defaultProjects);
+      return defaultProjects;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    let modified = false;
+    if (Array.isArray(parsed)) {
+      const p1 = parsed.find((p) => p.id === 'default-entra');
+      if (p1 && (p1.name === 'Microsoft Entra ID (Local Mock)' || p1.name === 'bkash Portal')) {
+        p1.name = 'Portal SSO';
+        modified = true;
+      }
+      const p2 = parsed.find((p) => p.id === 'contoso-tenant');
+      if (p2 && p2.name === 'Contoso Enterprise Tenant') {
+        p2.name = 'Portal Contoso Enterprise SSO';
+        modified = true;
+      }
+      if (modified) {
+        saveProjects(parsed);
+      }
+    }
+    return parsed;
   } catch {
-    return defaultProfiles;
+    return defaultProjects;
   }
 }
 
-export function saveProfiles(profiles: Profile[]) {
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+export function saveProjects(projects: Profile[]) {
+  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
 }
 
-export function getActiveProfile(): Profile {
-  const profiles = getProfiles();
-  const activeId = localStorage.getItem(ACTIVE_PROFILE_KEY);
-  const found = profiles.find((p) => p.id === activeId);
+export function getActiveProject(): Profile {
+  const projects = getProjects();
+  const activeId = localStorage.getItem(ACTIVE_PROJECT_KEY);
+  const found = projects.find((p) => p.id === activeId);
   if (found) return found;
-  if (profiles.length > 0) {
-    setActiveProfileId(profiles[0].id);
-    return profiles[0];
+  if (projects.length > 0) {
+    setActiveProjectId(projects[0].id);
+    return projects[0];
   }
-  return defaultProfiles[0];
+  return defaultProjects[0];
 }
 
-export function setActiveProfileId(id: string) {
-  localStorage.setItem(ACTIVE_PROFILE_KEY, id);
+export function setActiveProjectId(id: string) {
+  localStorage.setItem(ACTIVE_PROJECT_KEY, id);
 }
 
-export function saveActiveProfile(profile: Profile) {
-  const profiles = getProfiles();
-  const index = profiles.findIndex((p) => p.id === profile.id);
+export function saveActiveProject(project: Profile) {
+  const projects = getProjects();
+  const index = projects.findIndex((p) => p.id === project.id);
   if (index >= 0) {
-    profiles[index] = profile;
+    projects[index] = project;
   } else {
-    profiles.push(profile);
+    projects.push(project);
   }
-  saveProfiles(profiles);
-  setActiveProfileId(profile.id);
+  saveProjects(projects);
+  setActiveProjectId(project.id);
 }
 
-export function deleteProfile(id: string) {
-  const profiles = getProfiles().filter((p) => p.id !== id);
-  saveProfiles(profiles);
-  if (profiles.length > 0) {
-    setActiveProfileId(profiles[0].id);
+export function deleteProject(id: string) {
+  const projects = getProjects().filter((p) => p.id !== id);
+  saveProjects(projects);
+  if (projects.length > 0) {
+    setActiveProjectId(projects[0].id);
   }
 }
 
