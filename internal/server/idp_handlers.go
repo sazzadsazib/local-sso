@@ -91,6 +91,8 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
     .client-info { background: rgba(0,0,0,0.45); border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.08); }
     .client-info div { display: flex; justify-content: space-between; margin-bottom: 0.4rem; }
     .client-info div:last-child { margin-bottom: 0; }
+    .request-details { margin-bottom: 1.5rem; }
+    .request-details summary { cursor: pointer; color: #a1a1a1; font-size: 0.8rem; font-weight: 600; padding: 0.3rem 0; user-select: none; }
     .client-info span.label { color: #737373; }
     .client-info span.val { color: #ebebeb; font-family: "Geist Mono", ui-monospace, monospace; word-break: break-all; text-align: right; max-width: 260px; }
     .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; color: #737373; margin-bottom: 0.5rem; }
@@ -122,12 +124,15 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
     <h1>Sign in with Microsoft</h1>
     <p class="subtitle">An application is requesting authentication via local OAuth2 / OpenID Connect.</p>
 
-    <div class="client-info">
-      <div><span class="label">Client ID:</span> <span class="val">{{.ClientID}}</span></div>
-      <div><span class="label">Redirect URI:</span> <span class="val">{{.RedirectURI}}</span></div>
-      <div><span class="label">Scope:</span> <span class="val">{{.Scope}}</span></div>
-      {{if .Tenant}}<div><span class="label">Tenant:</span> <span class="val">{{.Tenant}}</span></div>{{end}}
-    </div>
+    <details class="request-details">
+      <summary>Request details</summary>
+      <div class="client-info">
+        <div><span class="label">Client ID:</span> <span class="val">{{.ClientID}}</span></div>
+        <div><span class="label">Redirect URI:</span> <span class="val">{{.RedirectURI}}</span></div>
+        <div><span class="label">Scope:</span> <span class="val">{{.Scope}}</span></div>
+        {{if .Tenant}}<div><span class="label">Tenant:</span> <span class="val">{{.Tenant}}</span></div>{{end}}
+      </div>
+    </details>
 
     <form method="POST" action="/api/idp/login" id="loginForm">
       <input type="hidden" name="client_id" value="{{.ClientID}}">
