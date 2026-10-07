@@ -46,6 +46,8 @@ export interface Profile {
   clientSecret?: string;
   redirectUri: string;
   scope: string;
+  host?: string; // Configurable host origin / base URL (e.g. https://xxxx.ngrok-free.app or http://localhost:8080)
+  issuerMode?: 'host' | 'entra'; // 'host' (default: {host}/{tenant}/v2.0) or 'entra' (login.microsoftonline.com)
   authorizeUrl?: string;
   tokenUrl?: string;
   jwksUrl?: string;

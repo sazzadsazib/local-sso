@@ -2,6 +2,7 @@ package idp
 
 import (
 	"fmt"
+	"strings"
 )
 
 // OpenIDConfiguration represents standard OIDC metadata document.
@@ -21,18 +22,22 @@ type OpenIDConfiguration struct {
 	ClaimsSupported                       []string `json:"claims_supported"`
 }
 
-// GenerateDiscovery creates OIDC metadata customized for the given host, port, and tenant.
-func GenerateDiscovery(host string, port int, tenant string) OpenIDConfiguration {
+// GenerateDiscoveryFromOrigin creates OIDC metadata customized for the given origin (scheme://host[:port]), tenant, and issuerMode.
+// issuerMode can be "host" (default) or "entra" (https://login.microsoftonline.com/{tenant}/v2.0).
+func GenerateDiscoveryFromOrigin(origin, tenant, issuerMode string) OpenIDConfiguration {
 	if tenant == "" {
 		tenant = "common"
 	}
-	base := fmt.Sprintf("http://%s/%s", host, tenant)
-	if port > 0 {
-		base = fmt.Sprintf("http://%s:%d/%s", host, port, tenant)
+	origin = strings.TrimRight(origin, "/")
+	base := fmt.Sprintf("%s/%s", origin, tenant)
+
+	issuer := fmt.Sprintf("%s/%s/v2.0", origin, tenant)
+	if issuerMode == "entra" {
+		issuer = fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
 	}
 
 	return OpenIDConfiguration{
-		Issuer:                fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant),
+		Issuer:                issuer,
 		AuthorizationEndpoint: fmt.Sprintf("%s/oauth2/v2.0/authorize", base),
 		TokenEndpoint:         fmt.Sprintf("%s/oauth2/v2.0/token", base),
 		TokenEndpointAuthMethodsSupported: []string{
@@ -87,4 +92,13 @@ func GenerateDiscovery(host string, port int, tenant string) OpenIDConfiguration
 			"ver",
 		},
 	}
+}
+
+// GenerateDiscovery creates OIDC metadata customized for the given host, port, and tenant.
+func GenerateDiscovery(host string, port int, tenant string) OpenIDConfiguration {
+	origin := fmt.Sprintf("http://%s", host)
+	if port > 0 {
+		origin = fmt.Sprintf("http://%s:%d", host, port)
+	}
+	return GenerateDiscoveryFromOrigin(origin, tenant, "host")
 }

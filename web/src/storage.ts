@@ -15,6 +15,8 @@ const defaultProfiles: Profile[] = [
     redirectUri: 'http://localhost:3000/callback',
     scope: 'openid profile email offline_access',
     prompt: 'select_account',
+    host: '',
+    issuerMode: 'host',
   },
   {
     id: 'contoso-tenant',
@@ -24,6 +26,8 @@ const defaultProfiles: Profile[] = [
     clientId: 'client-app-contoso-123',
     redirectUri: 'http://127.0.0.1:8080/callback',
     scope: 'openid profile email offline_access User.Read',
+    host: '',
+    issuerMode: 'host',
   }
 ];
 
