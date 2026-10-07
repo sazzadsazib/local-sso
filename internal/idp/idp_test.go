@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"math/big"
 	"sso-local/internal/idp"
 	"testing"
@@ -94,6 +95,30 @@ func TestSignerAndVerification(t *testing.T) {
 	err = rsa.VerifyPKCS1v15(&km.PrivateKey().PublicKey, crypto.SHA256, hashed[:], sig)
 	if err != nil {
 		t.Errorf("signature verification failed: %v", err)
+	}
+
+	// Verify access token conforms to Entra standard (no user profile info, only scp/appid/sub/oid/tid)
+	accParts := split3(resp.AccessToken)
+	if len(accParts) != 3 {
+		t.Fatalf("expected 3 parts for access token, got %d", len(accParts))
+	}
+	accPayloadBytes, err := base64.RawURLEncoding.DecodeString(accParts[1])
+	if err != nil {
+		t.Fatalf("decode access token payload: %v", err)
+	}
+	var accClaims map[string]interface{}
+	if err := json.Unmarshal(accPayloadBytes, &accClaims); err != nil {
+		t.Fatalf("unmarshal access token payload: %v", err)
+	}
+	for _, forbidden := range []string{"email", "preferred_username", "name", "given_name", "family_name"} {
+		if _, exists := accClaims[forbidden]; exists {
+			t.Errorf("access token must not contain user profile claim %q", forbidden)
+		}
+	}
+	for _, required := range []string{"sub", "oid", "tid", "scp", "appid", "ver"} {
+		if _, exists := accClaims[required]; !exists {
+			t.Errorf("access token missing standard claim %q", required)
+		}
 	}
 }
 

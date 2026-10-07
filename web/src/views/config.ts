@@ -96,7 +96,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       </div>
 
       <!-- Quick Frontend Redirect URL Card -->
-      <div class="glass-panel glass-hero p-6 rounded-2xl relative overflow-hidden">
+      <div class="tilt-card glass-panel glass-hero p-6 rounded-2xl relative overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
           <div class="flex items-center gap-2.5 min-w-0">
             <div class="p-2 rounded-lg bg-sky-500/20 text-sky-400 shrink-0">

@@ -40,7 +40,7 @@ export async function renderUsersView(container: HTMLElement) {
       usersListEl.innerHTML = users
         .map(
           (u) => `
-        <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4 relative flex flex-col justify-between">
+        <div class="tilt-card glass-panel glass-hover p-6 rounded-2xl space-y-4 relative flex flex-col justify-between">
           <div class="space-y-3">
             <div class="flex items-start justify-between gap-3">
               <div class="flex items-center gap-3 min-w-0">

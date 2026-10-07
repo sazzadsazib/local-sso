@@ -128,6 +128,28 @@
   }
 }
 
+/* Vercel-style Mouse Pointer Glow & Spotlight ------------------------------ */
+#cursor-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      650px circle at var(--cursor-x, -999px) var(--cursor-y, -999px),
+      rgba(255, 105, 0, 0.085),
+      transparent 65%
+    ),
+    radial-gradient(
+      220px circle at var(--cursor-x, -999px) var(--cursor-y, -999px),
+      rgba(255, 151, 51, 0.06),
+      transparent 55%
+    );
+  opacity: var(--cursor-opacity, 0);
+  transition: opacity 0.3s ease;
+  will-change: background;
+}
+
 /* Glassmorphism surfaces -------------------------------------------------- */
 .glass-panel {
   position: relative;
@@ -143,6 +165,70 @@
   box-shadow:
     0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
     0 24px 48px -28px rgba(0, 0, 0, 0.95);
+}
+
+/* Vercel-style dynamic border glow on mouse hover */
+.glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    360px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgba(255, 115, 20, 0.38),
+    rgba(255, 255, 255, 0.08) 35%,
+    transparent 65%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  z-index: 2;
+}
+
+.glass-panel:hover::before {
+  opacity: 1;
+}
+
+/* Subtle micro-tilt for specific cards (profile cards, info cards) */
+.tilt-card {
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.15s ease,
+              background-color 0.15s ease,
+              box-shadow 0.15s ease;
+}
+
+.tilt-card.is-tilting {
+  transition: border-color 0.15s ease,
+              background-color 0.15s ease,
+              box-shadow 0.15s ease;
+}
+
+/* Very light, subtle specular sheen on tilt */
+.tilt-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    400px circle at var(--mouse-x, -100%) var(--mouse-y, -100%),
+    rgba(255, 255, 255, 0.025),
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.tilt-card.is-tilting::after {
+  opacity: 1;
 }
 
 .glass-card {
