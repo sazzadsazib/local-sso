@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Development runner: UI + API + OIDC on ONE public port.
 #
-#   ./run.sh                       # everything on http://127.0.0.1:8080
+#   ./run.sh                       # everything on http://localhost:8080
 #   PORT=3000 ./run.sh             # same single port on 3000
 #   GO_PORT=9091 ./run.sh          # move the internal (proxied) Go port
 #
@@ -57,7 +57,7 @@ if ! port_free "$PORT"; then
   exit 1
 fi
 
-PUBLIC="127.0.0.1:${PORT}"
+PUBLIC="localhost:${PORT}"
 GO_ADDR="127.0.0.1:${GO_PORT}"
 BACKEND="${SSO_BACKEND:-http://${GO_ADDR}}"   # Vite proxy target
 
@@ -128,7 +128,7 @@ cat <<EOF
 
   ---------------------------------------------------------------
    dev mode — ONE port for everything
-   open:       http://${PUBLIC}/#config
+   open:       http://${PUBLIC}/#projects
      UI (HMR): http://${PUBLIC}/            -> Vite
      API:      http://${PUBLIC}/api/*       -> proxied to ${GO_ADDR}
      OIDC:     http://${PUBLIC}/{tenant}/oauth2/* , /{tenant}/v2.0/* , /{tenant}/discovery/*

@@ -5,22 +5,22 @@ The whole flow: **copy URL from Config → put it in your mock API's redirect �
 Server to start:
 
 ```bash
-./run.sh        # UI + API + OIDC on http://127.0.0.1:8080
+./run.sh        # UI + API + OIDC on http://localhost:8080
 ```
 
 ---
 
 ## Step 1 — Copy from Config
 
-Open `http://127.0.0.1:8080/#config` and copy:
+Open `http://localhost:8080/#config` and copy:
 
 | Field on the Config screen | Copy value (default) |
 |---|---|
-| **Frontend Redirect Authorize URL** | `http://127.0.0.1:8080/common/oauth2/v2.0/authorize?...` (already contains client_id + redirect_uri + scope) |
+| **Frontend Redirect Authorize URL** | `http://localhost:8080/common/oauth2/v2.0/authorize?...` (already contains client_id + redirect_uri + scope) |
 | **Redirect URI** (form field) | `http://localhost:3000/callback` |
 | **Client ID** (form field) | `00000000-0000-0000-0000-000000000001` |
 | **Scope** (form field) | `openid profile email offline_access` |
-| **Authority Base** (endpoints list) | `http://127.0.0.1:8080` |
+| **Authority Base** (endpoints list) | `http://localhost:8080` |
 
 If you build the URL yourself (recommended — you must add `state` + PKCE):
 
@@ -37,7 +37,7 @@ If you build the URL yourself (recommended — you must add `state` + PKCE):
 ```
 
 * `base` + `tenant` come from the Config screen (`common`, `organizations`, `consumers`, or a tenant GUID).
-* Hostname must match what you copy: `127.0.0.1` ≠ `localhost` for `redirect_uri`.
+* Hostname must match what you copy: `localhost` ≠ `localhost` for `redirect_uri`.
 
 ---
 
@@ -51,7 +51,7 @@ app.get('/login', (req, res) => {
   const state = crypto.randomUUID();
   req.session.oauth = { state, verifier: req.session.verifier }; // store verifier if using PKCE
   res.redirect(
-    'http://127.0.0.1:8080/common/oauth2/v2.0/authorize?' +
+    'http://localhost:8080/common/oauth2/v2.0/authorize?' +
     new URLSearchParams({
       client_id: '00000000-0000-0000-0000-000000000001',
       redirect_uri: 'http://localhost:3000/callback',   // <-- your callback
@@ -84,7 +84,7 @@ GET /callback?code=0.Axxxx&state=<the one you sent>
 ### If the callback runs on your **backend** (Node/Python/etc.)
 
 ```js
-const res = await fetch('http://127.0.0.1:8080/common/oauth2/v2.0/token', {
+const res = await fetch('http://localhost:8080/common/oauth2/v2.0/token', {
   method: 'POST',
   headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   body: new URLSearchParams({
@@ -180,13 +180,13 @@ const data = await fetch('/api/token', {          // same-origin relay, no CORS
 | `aud` | equals your `client_id` |
 | `exp` | not past (now < exp) |
 | `nonce` | equals what you sent |
-| signature | RS256 against `http://127.0.0.1:8080/{tenant}/discovery/v2.0/keys` |
+| signature | RS256 against `http://localhost:8080/{tenant}/discovery/v2.0/keys` |
 
 One-shot server-side check (fetch + validate signature, issuer, audience):
 
 ```bash
-curl -s -X POST http://127.0.0.1:8080/api/verify -H 'Content-Type: application/json' \
-  -d '{"id_token":"<ID_TOKEN>","jwks_uri":"http://127.0.0.1:8080/common/discovery/v2.0/keys",
+curl -s -X POST http://localhost:8080/api/verify -H 'Content-Type: application/json' \
+  -d '{"id_token":"<ID_TOKEN>","jwks_uri":"http://localhost:8080/common/discovery/v2.0/keys",
        "issuer":"https://login.microsoftonline.com/common/v2.0","audience":"00000000-0000-0000-0000-000000000001"}'
 # -> {"verified":true,"claims":{...}}  |  {"verified":false,"reason":"..."}
 ```

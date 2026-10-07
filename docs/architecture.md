@@ -2,7 +2,7 @@
 
 A **single Go binary** developer tool that serves as a **Local Mock Microsoft Entra ID (OIDC) Identity Provider** and a **built-in SSO Test & Management Playground**. 
 
-Developers build and run the binary on `http://127.0.0.1:8080`. External frontend applications (e.g., React/Vue/Angular apps using MSAL.js or standard OAuth2/OIDC clients) can consume `sso-local` as their Entra ID provider to log in users, receive signed tokens, and establish SSO sessions locally. In parallel, developers can open the built-in Web UI to manage mock user identities, configure claims, inspect tokens, and test OAuth2 PKCE flows directly.
+Developers build and run the binary on `http://localhost:8080`. External frontend applications (e.g., React/Vue/Angular apps using MSAL.js or standard OAuth2/OIDC clients) can consume `sso-local` as their Entra ID provider to log in users, receive signed tokens, and establish SSO sessions locally. In parallel, developers can open the built-in Web UI to manage mock user identities, configure claims, inspect tokens, and test OAuth2 PKCE flows directly.
 
 ---
 
@@ -14,7 +14,7 @@ Developers build and run the binary on `http://127.0.0.1:8080`. External fronten
 | Primary Role | **Local Mock Entra ID Server (IdP)**: Emulates Microsoft Entra v2.0 endpoints for local frontends & backends |
 | Secondary Role | **SSO Client & Management Playground**: Built-in UI to test flows, configure mock users, inspect tokens, and copy configs |
 | Frontend Stack | Embedded into the binary via `//go:embed web` — zero external runtime files |
-| UI Views | `http://127.0.0.1:8080/#login` (Test Client), `http://127.0.0.1:8080/#users` (Mock User Directory), `http://127.0.0.1:8080/#config` (Config & Endpoints) |
+| UI Views | `http://localhost:8080/#login` (Test Client), `http://localhost:8080/#users` (Mock User Directory), `http://localhost:8080/#config` (Config & Endpoints) |
 | Protocol Support | Microsoft Entra ID v2.0 & Generic OIDC: Authorization Code + PKCE (S256), `state`, `nonce`, refresh tokens, JWKS RS256 signing |
 | Storage | Server in-memory/JSON store for mock users & active RSA signing keys; browser localStorage for UI profiles and test sessions |
 | Tests | Unit tests only — **E2E is out of scope by design** |
@@ -32,7 +32,7 @@ Developers build and run the binary on `http://127.0.0.1:8080`. External fronten
 ```
 sso-local/
 ├── go.mod                      # module sso-local, go 1.27, stdlib only
-├── main.go                     # CLI flags (-port, -tenant), //go:embed web, server bootstrap, 127.0.0.1 bind, auto-open browser
+├── main.go                     # CLI flags (-port, -tenant), //go:embed web, server bootstrap, localhost bind, auto-open browser
 ├── internal/
 │   ├── idp/
 │   │   ├── keys.go             # RSA keypair generation, JWKS JSON formatting (n, e, kid)
@@ -76,14 +76,14 @@ sso-local/
 
 ### Workflow A: External Frontend Consuming `sso-local` as Entra IdP
 
-Your frontend app (e.g. React running on `localhost:3000` using MSAL.js or `@azure/msal-browser`) configures `http://127.0.0.1:8080/common` (or a specific tenant GUID) as its authority.
+Your frontend app (e.g. React running on `localhost:3000` using MSAL.js or `@azure/msal-browser`) configures `http://localhost:8080/common` (or a specific tenant GUID) as its authority.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Dev as Developer / User
     participant App as Your Frontend (localhost:3000)
-    participant SSO as sso-local (127.0.0.1:8080)
+    participant SSO as sso-local (localhost:8080)
 
     App->>SSO: GET /{tenant}/v2.0/.well-known/openid-configuration
     SSO-->>App: 200 OK (OIDC Metadata & local endpoints)
@@ -105,15 +105,15 @@ sequenceDiagram
 
 #### Step Breakdown:
 1. **Discovery & JWKS**:
-   - The consumer app fetches `http://127.0.0.1:8080/{tenant}/v2.0/.well-known/openid-configuration`.
-   - `sso-local` responds with JSON endpoints pointing to `http://127.0.0.1:8080/{tenant}/...`.
-   - The app fetches `http://127.0.0.1:8080/{tenant}/discovery/v2.0/keys` to get the active RSA public key.
+   - The consumer app fetches `http://localhost:8080/{tenant}/v2.0/.well-known/openid-configuration`.
+   - `sso-local` responds with JSON endpoints pointing to `http://localhost:8080/{tenant}/...`.
+   - The app fetches `http://localhost:8080/{tenant}/discovery/v2.0/keys` to get the active RSA public key.
 2. **Authorize Request**:
-   - The frontend generates PKCE `code_verifier` & `code_challenge` (S256) and redirects to `http://127.0.0.1:8080/{tenant}/oauth2/v2.0/authorize`.
+   - The frontend generates PKCE `code_verifier` & `code_challenge` (S256) and redirects to `http://localhost:8080/{tenant}/oauth2/v2.0/authorize`.
    - `sso-local` serves a clean **Mock Login Prompt** (`auth_prompt.html`) allowing the developer to pick which mock user account to sign in as (or customize claims on the fly).
    - Once selected, `sso-local` issues an authorization code, stores the associated PKCE challenge, and redirects back to the frontend's `redirect_uri?code=...&state=...`.
 3. **Token Redemption**:
-   - The frontend posts to `http://127.0.0.1:8080/{tenant}/oauth2/v2.0/token` with `grant_type=authorization_code`, `code`, and `code_verifier`.
+   - The frontend posts to `http://localhost:8080/{tenant}/oauth2/v2.0/token` with `grant_type=authorization_code`, `code`, and `code_verifier`.
    - `sso-local` computes `BASE64URL(SHA256(code_verifier))` and verifies it against the stored challenge.
    - `sso-local` signs an **RS256 JWT `id_token` and `access_token`** using its local RSA private key. The token includes standard Entra v2.0 claims:
      ```json
@@ -138,12 +138,12 @@ sequenceDiagram
 
 ---
 
-### Workflow B: Built-in Management & Test Client (`http://127.0.0.1:8080/#login`)
+### Workflow B: Built-in Management & Test Client (`http://localhost:8080/#login`)
 
 Developers can also test without an external app:
-1. Open `http://127.0.0.1:8080/#login`.
+1. Open `http://localhost:8080/#login`.
 2. Click **"Run Test Login"**.
-3. It performs the full browser redirect flow against `sso-local`'s own authorize/token endpoints, exchanges the code, and lands on `http://127.0.0.1:8080/#login` showing decoded claims, token inspector, signature validation badge, and live refresh/logout testing buttons.
+3. It performs the full browser redirect flow against `sso-local`'s own authorize/token endpoints, exchanges the code, and lands on `http://localhost:8080/#login` showing decoded claims, token inspector, signature validation badge, and live refresh/logout testing buttons.
 
 ---
 
@@ -189,13 +189,13 @@ All endpoints support **CORS** (`Access-Control-Allow-Origin: *`, `Access-Contro
     const msalConfig = {
       auth: {
         clientId: "your-client-id",
-        authority: "http://127.0.0.1:8080/common",
-        knownAuthorities: ["127.0.0.1:8080"],
+        authority: "http://localhost:8080/common",
+        knownAuthorities: ["localhost:8080"],
         redirectUri: "http://localhost:3000/callback"
       }
     };
     ```
-  - **OIDC Discovery URL**: `http://127.0.0.1:8080/common/v2.0/.well-known/openid-configuration`
+  - **OIDC Discovery URL**: `http://localhost:8080/common/v2.0/.well-known/openid-configuration`
   - **cURL Command Generator**: Code exchange & refresh token command templates.
   - **Launcher Link**: One-click deep link to start an automated test auth flow.
 
@@ -208,11 +208,11 @@ All endpoints support **CORS** (`Access-Control-Allow-Origin: *`, `Access-Contro
 
 ## 6. Security Design & Developer Safety Rails
 
-- **Loopback Binding**: Listens exclusively on `127.0.0.1` to prevent unauthorized external network access.
+- **Loopback Binding**: Listens exclusively on `localhost` to prevent unauthorized external network access.
 - **RFC 7636 PKCE Enforcement**: `code_challenge` (S256) is securely stored and validated against `code_verifier` with constant-time SHA-256 matching.
 - **Single-Use Authorization Codes**: Auth codes expire after 5 minutes and are invalidated immediately upon redemption.
 - **Isolated Local Keys**: RSA 2048-bit keypair is generated on startup (or persisted in-memory/temp config), ensuring tokens generated by `sso-local` cannot be mistaken for production Microsoft tokens.
-- **Clear Dev Indicator**: Tokens include a distinct `"iss": "http://127.0.0.1:8080/{tenant}/v2.0"` (or configurable Entra-compatible issuer) so production systems are protected.
+- **Clear Dev Indicator**: Tokens include a distinct `"iss": "http://localhost:8080/{tenant}/v2.0"` (or configurable Entra-compatible issuer) so production systems are protected.
 
 ---
 

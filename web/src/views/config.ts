@@ -1,17 +1,17 @@
-import { getActiveProfile, getProfiles, saveActiveProfile, setActiveProfileId, deleteProfile } from '../storage';
+import { getActiveProject, getProjects, saveActiveProject, setActiveProjectId, deleteProject } from '../storage';
 import { Profile } from '../types';
 import { showToast } from '../components/toast';
 import { icon } from '../components/icons';
 
 export function renderConfigView(container: HTMLElement) {
-  const profile = getActiveProfile();
-  const profiles = getProfiles();
-  const effectiveOrigin = (profile.host && profile.host.trim())
-    ? profile.host.trim().replace(/\/+$/, '')
+  const project = getActiveProject();
+  const projects = getProjects();
+  const effectiveOrigin = (project.host && project.host.trim())
+    ? project.host.trim().replace(/\/+$/, '')
     : window.location.origin;
 
-  const tenant = profile.tenant || 'common';
-  const issuerMode = profile.issuerMode || 'host';
+  const tenant = project.tenant || 'common';
+  const issuerMode = project.issuerMode || 'host';
   const issuerUrl = issuerMode === 'entra'
     ? `https://login.microsoftonline.com/${tenant}/v2.0`
     : `${effectiveOrigin}/${tenant}/v2.0`;
@@ -19,11 +19,11 @@ export function renderConfigView(container: HTMLElement) {
   const authorityUrl = `${effectiveOrigin}/${tenant}`;
   const discoveryUrl = `${effectiveOrigin}/${tenant}/v2.0/.well-known/openid-configuration`;
   const authorizeUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
-    profile.clientId
+    project.clientId
   )}&response_type=code&redirect_uri=${encodeURIComponent(
-    profile.redirectUri
+    project.redirectUri
   )}&response_mode=query&scope=${encodeURIComponent(
-    profile.scope
+    project.scope
   )}&state=12345&nonce=67890`;
   const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
   const jwksUrl = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
@@ -39,10 +39,10 @@ import { PublicClientApplication } from "@azure/msal-browser";
 
 export const msalConfig = {
   auth: {
-    clientId: "${profile.clientId}",
+    clientId: "${project.clientId}",
     authority: "${authorityUrl}",
     knownAuthorities: ["${knownHost}"],
-    redirectUri: "${profile.redirectUri}",
+    redirectUri: "${project.redirectUri}",
   },
   cache: {
     cacheLocation: "localStorage",
@@ -54,41 +54,42 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
 
   const curlCodeSnippet = `curl -X POST "${tokenUrl}" \\
   -H "Content-Type: application/x-www-form-urlencoded" \\
-  -d "client_id=${profile.clientId}" \\
+  -d "client_id=${project.clientId}" \\
   -d "grant_type=authorization_code" \\
   -d "code=AUTHORIZATION_CODE" \\
   -d "code_verifier=PKCE_CODE_VERIFIER" \\
-  -d "redirect_uri=${profile.redirectUri}"`;
+  -d "redirect_uri=${project.redirectUri}"`;
 
   const curlRefreshSnippet = `curl -X POST "${tokenUrl}" \\
   -H "Content-Type: application/x-www-form-urlencoded" \\
-  -d "client_id=${profile.clientId}" \\
+  -d "client_id=${project.clientId}" \\
   -d "grant_type=refresh_token" \\
   -d "refresh_token=REFRESH_TOKEN" \\
-  -d "scope=${profile.scope}"`;
+  -d "scope=${project.scope}"`;
 
   container.innerHTML = `
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
-      <!-- Top Banner / Profile Header -->
+      <!-- Top Banner / Project Header -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-2xl">
         <div>
           <div class="flex flex-wrap items-center gap-2 mb-1">
-            <h1 class="text-2xl font-bold text-white">Identity Provider & App Config</h1>
+            <h1 class="text-2xl font-bold text-white">SSO Configuration</h1>
             <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30">Active</span>
           </div>
-          <p class="text-sm text-slate-400">Configure your local Microsoft Entra ID tenant parameters and copy endpoints for your frontend application.</p>
+          <p class="text-sm text-slate-400">Project: <span class="text-white font-medium">${project.name}</span> &mdash; <span class="font-mono text-xs">${project.rootUrl || '—'}</span></p>
+          <p class="text-sm text-slate-400 mt-0.5">Configure your local Microsoft Entra ID tenant parameters and copy endpoints for your frontend application.</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <select id="profileSelector" class="flex-1 min-w-0 md:flex-none md:w-auto bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
-            ${profiles
+          <select id="projectSelector" class="flex-1 min-w-0 md:flex-none md:w-auto bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+            ${projects
               .map(
-                (p) => `<option value="${p.id}" ${p.id === profile.id ? 'selected' : ''}>${p.name} (${p.tenant})</option>`
+                (p) => `<option value="${p.id}" ${p.id === project.id ? 'selected' : ''}>${p.name} (${p.rootUrl})</option>`
               )
               .join('')}
           </select>
-          <button id="btnNewProfile" class="shrink-0 px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl border border-slate-700 transition flex items-center gap-1.5" aria-label="New profile">
+          <button id="btnNewProject" class="shrink-0 px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl border border-slate-700 transition flex items-center gap-1.5" aria-label="New project">
             ${icon('plus', 'w-3.5 h-3.5', 2.25)} New
           </button>
         </div>
@@ -129,13 +130,19 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
         <div class="lg:col-span-5 space-y-6">
           <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5">
             <h3 class="text-base font-bold text-white flex items-center gap-2">
-              ${icon('settings', 'w-4 h-4 text-orange-400')} Profile Settings
+              ${icon('settings', 'w-4 h-4 text-orange-400')} Project SSO Settings
             </h3>
 
             <div class="space-y-4">
               <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Profile Name</label>
-                <input id="inputName" type="text" value="${profile.name}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Name</label>
+                <input id="inputName" type="text" value="${project.name}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Root URL</label>
+                <input id="inputRootUrl" type="text" value="${project.rootUrl || ''}" placeholder="e.g. http://localhost:3000" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <p class="mt-1 text-[11px] text-slate-500">Root URL of your frontend application. Used to build authorization links for this project.</p>
               </div>
 
               <div>
@@ -143,17 +150,17 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                   Tenant (Alias or GUID)
                   <span class="text-[10px] text-slate-500 font-normal">("common", "organizations", "consumers", or tenant GUID)</span>
                 </label>
-                <input id="inputTenant" type="text" value="${profile.tenant}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <input id="inputTenant" type="text" value="${project.tenant}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
 
               <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1.5">Application (Client) ID</label>
-                <input id="inputClientId" type="text" value="${profile.clientId}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <input id="inputClientId" type="text" value="${project.clientId}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
 
               <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1.5">Redirect URI (Frontend Callback)</label>
-                <input id="inputRedirectUri" type="text" value="${profile.redirectUri}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <input id="inputRedirectUri" type="text" value="${project.redirectUri}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
 
               <div>
@@ -161,7 +168,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                   <span>Host Origin / Base URL</span>
                   <span class="text-[10px] text-sky-400 font-normal">Active: ${effectiveOrigin}</span>
                 </label>
-                <input id="inputHost" type="text" placeholder="e.g. https://xxxx.ngrok-free.app or ${window.location.origin}" value="${profile.host || ''}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <input id="inputHost" type="text" placeholder="e.g. https://xxxx.ngrok-free.app or ${window.location.origin}" value="${project.host || ''}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
                 <p class="mt-1 text-[11px] text-slate-500">Base host origin for endpoints &amp; snippets. Configure with your ngrok HTTPS URL when exposing externally.</p>
               </div>
 
@@ -179,7 +186,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
 
               <div>
                 <label class="block text-xs font-semibold text-slate-400 mb-1.5">OAuth Scopes</label>
-                <input id="inputScope" type="text" value="${profile.scope}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <input id="inputScope" type="text" value="${project.scope}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
             </div>
 
@@ -188,8 +195,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                 Save Changes
               </button>
               ${
-                profiles.length > 1
-                  ? `<button id="btnDeleteProfile" class="px-3.5 py-2 text-rose-400 hover:text-rose-300 text-xs font-medium hover:bg-rose-500/10 rounded-lg transition">Delete Profile</button>`
+                projects.length > 1
+                  ? `<button id="btnDeleteProject" class="px-3.5 py-2 text-rose-400 hover:text-rose-300 text-xs font-medium hover:bg-rose-500/10 rounded-lg transition">Delete Project</button>`
                   : ''
               }
             </div>
@@ -313,16 +320,17 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
   `;
 
   // Attach Event Handlers
-  document.getElementById('profileSelector')?.addEventListener('change', (e) => {
-    setActiveProfileId((e.target as HTMLSelectElement).value);
+  document.getElementById('projectSelector')?.addEventListener('change', (e) => {
+    setActiveProjectId((e.target as HTMLSelectElement).value);
     renderConfigView(container);
-    showToast('Profile switched');
+    showToast('Project switched');
   });
 
-  document.getElementById('btnNewProfile')?.addEventListener('click', () => {
+  document.getElementById('btnNewProject')?.addEventListener('click', () => {
     const newP: Profile = {
-      id: 'profile-' + Date.now(),
-      name: 'Custom Tenant Profile',
+      id: 'project-' + Date.now(),
+      name: 'Custom Project',
+      rootUrl: 'http://localhost:3000',
       provider: 'entra',
       tenant: 'common',
       clientId: '00000000-0000-0000-0000-000000000002',
@@ -331,15 +339,16 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       host: '',
       issuerMode: 'host',
     };
-    saveActiveProfile(newP);
+    saveActiveProject(newP);
     renderConfigView(container);
-    showToast('Created new profile');
+    showToast('Created new project');
   });
 
   document.getElementById('btnSaveConfig')?.addEventListener('click', () => {
     const updated: Profile = {
-      ...profile,
+      ...project,
       name: (document.getElementById('inputName') as HTMLInputElement).value,
+      rootUrl: (document.getElementById('inputRootUrl') as HTMLInputElement).value.trim(),
       tenant: (document.getElementById('inputTenant') as HTMLInputElement).value,
       clientId: (document.getElementById('inputClientId') as HTMLInputElement).value,
       redirectUri: (document.getElementById('inputRedirectUri') as HTMLInputElement).value,
@@ -347,16 +356,16 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       host: (document.getElementById('inputHost') as HTMLInputElement).value.trim(),
       issuerMode: (document.getElementById('selectIssuerMode') as HTMLSelectElement).value as 'host' | 'entra',
     };
-    saveActiveProfile(updated);
+    saveActiveProject(updated);
     renderConfigView(container);
-    showToast('Profile saved successfully');
+    showToast('Project saved successfully');
   });
 
-  document.getElementById('btnDeleteProfile')?.addEventListener('click', () => {
-    if (confirm('Delete this profile?')) {
-      deleteProfile(profile.id);
+  document.getElementById('btnDeleteProject')?.addEventListener('click', () => {
+    if (confirm('Delete this project?')) {
+      deleteProject(project.id);
       renderConfigView(container);
-      showToast('Profile deleted');
+      showToast('Project deleted');
     }
   });
 

@@ -40,6 +40,7 @@ export interface PKCEState {
 export interface Profile {
   id: string;
   name: string;
+  rootUrl: string; // Project root URL (e.g. http://localhost:3000)
   provider: 'entra' | 'generic';
   tenant: string;
   clientId: string;

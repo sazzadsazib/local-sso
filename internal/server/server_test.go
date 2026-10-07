@@ -272,7 +272,7 @@ func TestCompletePKCEFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode id_token: %v", err)
 	}
-	if claims.Audience != "client-app-1" || claims.Name != "Alex Wilber" {
+	if claims.Audience != "client-app-1" || claims.Name != "Sazzad Sazib" {
 		t.Errorf("unexpected claims: %+v", claims)
 	}
 

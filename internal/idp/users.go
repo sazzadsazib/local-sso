@@ -48,14 +48,14 @@ func NewUserStore() *UserStore {
 
 	u1 := MockUser{
 		ID:                "user-1",
-		DisplayName:       "Alex Wilber",
-		GivenName:         "Alex",
-		FamilyName:        "Wilber",
-		Email:             "alexw@contoso.onmicrosoft.com",
-		PreferredUsername: "alexw@contoso.onmicrosoft.com",
+		DisplayName:       "Sazzad Sazib",
+		GivenName:         "Sazzad",
+		FamilyName:        "Sazib",
+		Email:             "sazib@gmail.com",
+		PreferredUsername: "sazib@gmail.com",
 		TenantID:          defaultTenant,
 		ObjectID:          "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
-		SubjectID:         "sub-alex-wilber-001",
+		SubjectID:         "sub-sazzad-sazib-001",
 		Roles:             []string{"Global Administrator", "User"},
 		Groups:            []string{"Engineers", "Admins"},
 		CustomClaims: map[string]interface{}{
@@ -66,43 +66,24 @@ func NewUserStore() *UserStore {
 
 	u2 := MockUser{
 		ID:                "user-2",
-		DisplayName:       "Megan Bowen",
-		GivenName:         "Megan",
-		FamilyName:        "Bowen",
-		Email:             "meganb@contoso.onmicrosoft.com",
-		PreferredUsername: "meganb@contoso.onmicrosoft.com",
+		DisplayName:       "Iftekhar Rifat",
+		GivenName:         "Iftekhar",
+		FamilyName:        "Rifat",
+		Email:             "rifat@gmail.com",
+		PreferredUsername: "rifat@gmail.com",
 		TenantID:          defaultTenant,
 		ObjectID:          "f6e5d4c3-b2a1-4f5e-9d8c-7b6a5f4e3d2c",
-		SubjectID:         "sub-megan-bowen-002",
+		SubjectID:         "sub-iftekhar-rifat-002",
 		Roles:             []string{"Application Developer", "User"},
 		Groups:            []string{"Developers"},
 		CustomClaims: map[string]interface{}{
 			"department": "Product Development",
-			"job_title":  "Senior Frontend Engineer",
-		},
-	}
-
-	u3 := MockUser{
-		ID:                "user-3",
-		DisplayName:       "Adele Vance",
-		GivenName:         "Adele",
-		FamilyName:        "Vance",
-		Email:             "adelev@contoso.onmicrosoft.com",
-		PreferredUsername: "adelev@contoso.onmicrosoft.com",
-		TenantID:          defaultTenant,
-		ObjectID:          "9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d",
-		SubjectID:         "sub-adele-vance-003",
-		Roles:             []string{"Security Auditor", "User"},
-		Groups:            []string{"Auditors"},
-		CustomClaims: map[string]interface{}{
-			"department": "Compliance",
-			"job_title":  "Compliance Analyst",
+			"job_title":  "Senior Software Engineer",
 		},
 	}
 
 	store.users[u1.ID] = u1
 	store.users[u2.ID] = u2
-	store.users[u3.ID] = u3
 
 	return store
 }

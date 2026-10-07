@@ -15,7 +15,7 @@
                      1. Authorize Redir │                            │ 5. Session Created
                                         ▼                            │
 ┌────────────────────────────────────────────────────────────────────┴──────────────────────────────────────┐
-│  sso-local (Single Go Binary on http://127.0.0.1:8080)                                                    │
+│  sso-local (Single Go Binary on http://localhost:8080)                                                    │
 │                                                                                                           │
 │  ┌─────────────────────────┐   ┌──────────────────────────┐   ┌────────────────────────────────────────┐  │
 │  │ OIDC Discovery & JWKS   │   │ Interactive Mock Sign-in │   │ Token Signer & PKCE Engine             │  │
@@ -62,7 +62,7 @@ Access-Control-Allow-Headers: Authorization, Content-Type, Accept, Origin, X-Req
 Your frontend can initiate authentication by redirecting the user's browser to the authorize URL generated on the `#config` dashboard:
 
 ```text
-http://127.0.0.1:8080/{tenant}/oauth2/v2.0/authorize
+http://localhost:8080/{tenant}/oauth2/v2.0/authorize
   ?client_id=<YOUR_CLIENT_ID>
   &response_type=code
   &redirect_uri=http://localhost:3000/callback
@@ -85,8 +85,8 @@ import { PublicClientApplication, Configuration } from "@azure/msal-browser";
 export const msalConfig: Configuration = {
   auth: {
     clientId: "your-client-id",
-    authority: "http://127.0.0.1:8080/common",
-    knownAuthorities: ["127.0.0.1:8080"],
+    authority: "http://localhost:8080/common",
+    knownAuthorities: ["localhost:8080"],
     redirectUri: "http://localhost:3000/callback",
   },
   cache: {
@@ -144,7 +144,7 @@ Tokens issued by `sso-local` are signed with an internal **RS256 2048-bit RSA ke
 - `PUT /api/users/{id}` — Update user claims and roles
 - `DELETE /api/users/{id}` — Remove mock user
 
-You can configure mock users via the UI at `http://127.0.0.1:8080/#users`.
+You can configure mock users via the UI at `http://localhost:8080/#users`.
 
 ---
 

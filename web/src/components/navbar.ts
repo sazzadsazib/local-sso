@@ -2,6 +2,7 @@ import { icon, dot } from './icons';
 
 export function renderNavbar(activeTab: string): string {
   const tabs = [
+    { id: 'projects', label: 'Projects', icon: 'folder' as const, hash: '#projects' },
     { id: 'config', label: 'Endpoints & Config', icon: 'settings' as const, hash: '#config' },
     { id: 'users', label: 'Mock Users', icon: 'users' as const, hash: '#users' },
     { id: 'login', label: 'Test Client', icon: 'rocket' as const, hash: '#login' },
@@ -41,7 +42,7 @@ export function renderNavbar(activeTab: string): string {
         <div class="flex items-center gap-3 shrink-0">
           <div class="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-slate-300 text-xs font-mono">
             <span class="text-emerald-400">${dot('w-1.5 h-1.5')}</span>
-            127.0.0.1:${window.location.port || '8080'}
+            localhost:${window.location.port || '8080'}
           </div>
         </div>
       </div>

@@ -21,7 +21,9 @@ export type IconName =
   | 'arrow-up-right'
   | 'search'
   | 'sparkles'
-  | 'plus';
+  | 'plus'
+  | 'folder'
+  | 'external-link';
 
 const PATHS: Record<IconName, string> = {
   settings:
@@ -61,6 +63,10 @@ const PATHS: Record<IconName, string> = {
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
   sparkles:
     '<path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><path d="m6.3 6.3 2.4 2.4"/><path d="m15.3 15.3 2.4 2.4"/><path d="m17.7 6.3-2.4 2.4"/><path d="m8.7 15.3-2.4 2.4"/>',
+  folder:
+    '<path d="M20 9a2 2 0 0 0-1.2-1.87l-2-1A2 2 0 0 0 15.3 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z"/>',
+  'external-link':
+    '<path d="M15 3h6v6"/><path d="M21 3 11 13"/><path d="M5 5v14h14"/>',
 };
 
 export function icon(name: IconName, cls = 'w-4 h-4', sw = 1.75): string {
