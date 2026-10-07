@@ -80,9 +80,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/verify", s.HandleVerify)
 	mux.HandleFunc("/callback", s.HandleCallback)
 
-	// 3. User directory management APIs
+	// 3. User directory & profile APIs
 	mux.HandleFunc("/api/users", s.HandleUsers)
 	mux.HandleFunc("/api/users/", s.HandleUserByID)
+	mux.HandleFunc("/api/user", s.HandleUserInfoEndpoint)
+	mux.HandleFunc("/api/me", s.HandleUserInfoEndpoint)
 	mux.HandleFunc("/api/idp/login", s.HandleIDPLogin)
 
 	// 4. Static asset file server from embedded web FS
@@ -124,6 +126,12 @@ func (s *Server) Handler() http.Handler {
 		// Logout endpoint (/oauth2/v2.0/logout)
 		if strings.HasSuffix(p, "/oauth2/v2.0/logout") || p == "/oauth2/v2.0/logout" {
 			s.HandleLogoutEndpoint(w, r)
+			return
+		}
+
+		// Userinfo endpoint (/oidc/userinfo, /oauth2/v2.0/userinfo)
+		if strings.HasSuffix(p, "/oidc/userinfo") || strings.HasSuffix(p, "/oauth2/v2.0/userinfo") || p == "/oidc/userinfo" || p == "/api/userinfo" {
+			s.HandleUserInfoEndpoint(w, r)
 			return
 		}
 

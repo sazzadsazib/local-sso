@@ -1,0 +1,10 @@
+.git
+.github
+bin/
+docs/
+*.md
+web/node_modules/
+web/dist/
+web/.vite/
+*.exe
+sso-local

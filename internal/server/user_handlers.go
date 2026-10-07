@@ -14,6 +14,11 @@ func (s *Server) HandleUsers(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") && r.URL.Query().Get("all") == "" {
+			s.HandleUserInfoEndpoint(w, r)
+			return
+		}
 		users := s.UserStore.List()
 		_ = json.NewEncoder(w).Encode(users)
 
@@ -48,6 +53,10 @@ func (s *Server) HandleUserByID(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/users/")
 	if id == "" {
 		http.Error(w, `{"error":"missing_user_id"}`, http.StatusBadRequest)
+		return
+	}
+	if id == "me" {
+		s.HandleUserInfoEndpoint(w, r)
 		return
 	}
 

@@ -28,6 +28,9 @@ export function renderConfigView(container: HTMLElement) {
   const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
   const jwksUrl = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
   const logoutUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/logout`;
+  const userinfoUrl = `${effectiveOrigin}/${tenant}/oidc/userinfo`;
+  const usersApiUrl = `${effectiveOrigin}/api/users`;
+  const authorizeBaseUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize`;
 
   let knownHost = window.location.host;
   try {
@@ -66,6 +69,243 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
   -d "grant_type=refresh_token" \\
   -d "refresh_token=REFRESH_TOKEN" \\
   -d "scope=${project.scope}"`;
+
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  const endpointsList = [
+    {
+      name: 'OIDC Authorize Endpoint',
+      method: 'GET' as const,
+      url: authorizeBaseUrl,
+      description: 'Initiates OAuth2/OIDC sign-in flow and returns an authorization code with PKCE protection.',
+      requestSample: `GET /${tenant}/oauth2/v2.0/authorize?client_id=${project.clientId}&response_type=code&redirect_uri=${encodeURIComponent(project.redirectUri)}&scope=${encodeURIComponent(project.scope)}&response_mode=query&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256&prompt=select_account HTTP/1.1\nHost: ${knownHost}`,
+      responseStatus: '302 Found (Redirect with Code)',
+      responseSample: `HTTP/1.1 302 Found\nLocation: ${project.redirectUri}?code=mock_code_8f2b1d9c&state=xyz123`,
+    },
+    {
+      name: 'OAuth2 Token Endpoint',
+      method: 'POST' as const,
+      url: tokenUrl,
+      description: 'Redeems authorization code + PKCE verifier or refresh token for RS256 ID & Access tokens.',
+      requestSample: `POST /${tenant}/oauth2/v2.0/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code\n&client_id=${project.clientId}\n&code=mock_code_8f2b1d9c\n&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\n&redirect_uri=${encodeURIComponent(project.redirectUri)}`,
+      responseStatus: '200 OK (application/json)',
+      responseSample: JSON.stringify(
+        {
+          token_type: 'Bearer',
+          scope: project.scope,
+          expires_in: 3600,
+          access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzby1sb2NhbC1hY3RpdmUta2V5IiwidHlwIjoiSldUIn0.ey...',
+          id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzby1sb2NhbC1hY3RpdmUta2V5IiwidHlwIjoiSldUIn0.ey...',
+          refresh_token: 'sso-local-refresh-8f2b1d9c4e0a7',
+        },
+        null,
+        2
+      ),
+    },
+    {
+      name: 'OIDC UserInfo Endpoint',
+      method: 'GET' as const,
+      url: userinfoUrl,
+      description: 'Standard OpenID Connect UserInfo endpoint returning authenticated profile and claims for a Bearer token.',
+      requestSample: `GET /${tenant}/oidc/userinfo HTTP/1.1\nHost: ${knownHost}\nAuthorization: Bearer <access_token>`,
+      responseStatus: '200 OK (application/json)',
+      responseSample: JSON.stringify(
+        {
+          sub: 'sub-sazzad-sazib-001',
+          name: 'Sazzad Sazib',
+          given_name: 'Sazzad',
+          family_name: 'Sazib',
+          preferred_username: 'sazib@gmail.com',
+          email: 'sazib@gmail.com',
+          email_verified: true,
+          tid: tenant,
+          oid: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
+          roles: ['Global Administrator', 'User'],
+          groups: ['Engineers', 'Admins'],
+          department: 'Engineering',
+          job_title: 'Principal Security Engineer',
+        },
+        null,
+        2
+      ),
+    },
+    {
+      name: 'Directory Mock Users API',
+      method: 'GET' as const,
+      url: usersApiUrl,
+      description: 'Directory API to list, create, and manage mock personas and claims for SSO integration testing.',
+      requestSample: `GET /api/users HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
+      responseStatus: '200 OK (application/json)',
+      responseSample: JSON.stringify(
+        [
+          {
+            id: 'user-1',
+            name: 'Sazzad Sazib',
+            email: 'sazib@gmail.com',
+            preferred_username: 'sazib@gmail.com',
+            roles: ['Global Administrator', 'User'],
+            groups: ['Engineers', 'Admins'],
+          },
+          {
+            id: 'user-2',
+            name: 'Iftekhar Rifat',
+            email: 'rifat@gmail.com',
+            preferred_username: 'rifat@gmail.com',
+            roles: ['Application Developer', 'User'],
+            groups: ['Developers'],
+          },
+        ],
+        null,
+        2
+      ),
+    },
+    {
+      name: 'OpenID Discovery Document (.well-known)',
+      method: 'GET' as const,
+      url: discoveryUrl,
+      description: 'Auto-discovery configuration document (.well-known) used by OIDC libraries (NextAuth, Better Auth, Supabase, Spring Boot).',
+      requestSample: `GET /${tenant}/v2.0/.well-known/openid-configuration HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
+      responseStatus: '200 OK (application/json)',
+      responseSample: JSON.stringify(
+        {
+          issuer: issuerUrl,
+          authorization_endpoint: authorizeBaseUrl,
+          token_endpoint: tokenUrl,
+          userinfo_endpoint: userinfoUrl,
+          jwks_uri: jwksUrl,
+          end_session_endpoint: logoutUrl,
+          response_types_supported: ['code', 'id_token', 'code id_token', 'token'],
+          scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
+          id_token_signing_alg_values_supported: ['RS256'],
+          code_challenge_methods_supported: ['S256', 'plain'],
+        },
+        null,
+        2
+      ),
+    },
+    {
+      name: 'JWKS Public Keys (RS256)',
+      method: 'GET' as const,
+      url: jwksUrl,
+      description: 'JSON Web Key Set containing RSA public keys used by resource servers to verify token signatures.',
+      requestSample: `GET /${tenant}/discovery/v2.0/keys HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
+      responseStatus: '200 OK (application/json)',
+      responseSample: JSON.stringify(
+        {
+          keys: [
+            {
+              kty: 'RSA',
+              use: 'sig',
+              alg: 'RS256',
+              kid: 'sso-local-active-key',
+              n: 'u9h3K8x2Y_... (2048-bit RSA Modulus)',
+              e: 'AQAB',
+            },
+          ],
+        },
+        null,
+        2
+      ),
+    },
+    {
+      name: 'OIDC Token Issuer (iss claim)',
+      method: 'CONFIG' as const,
+      url: issuerUrl,
+      description: 'The expected OIDC token issuer URI validated against the "iss" claim inside signed ID tokens.',
+      requestSample: `// Decoded ID Token Payload Claim:\n{\n  "iss": "${issuerUrl}",\n  "aud": "${project.clientId}",\n  "sub": "sub-sazzad-sazib-001",\n  "tid": "${tenant}"\n}`,
+      responseStatus: 'JWT Claims Match',
+      responseSample: `iss == "${issuerUrl}"\naud == "${project.clientId}"\nSignature: Validated via JWKS`,
+    },
+    {
+      name: 'Authority URL (MSAL.js)',
+      method: 'CONFIG' as const,
+      url: authorityUrl,
+      description: 'Base authority string configured in @azure/msal-browser PublicClientApplication.',
+      requestSample: `import { PublicClientApplication } from "@azure/msal-browser";\n\nexport const msal = new PublicClientApplication({\n  auth: {\n    clientId: "${project.clientId}",\n    authority: "${authorityUrl}",\n    knownAuthorities: ["${knownHost}"]\n  }\n});`,
+      responseStatus: 'MSAL Instance Config',
+      responseSample: `{\n  "authority": "${authorityUrl}",\n  "knownAuthorities": ["${knownHost}"]\n}`,
+    },
+    {
+      name: 'End Session / Logout',
+      method: 'GET' as const,
+      url: logoutUrl,
+      description: 'Terminates SSO session and redirects user to post_logout_redirect_uri.',
+      requestSample: `GET /${tenant}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(project.rootUrl || 'http://localhost:3000')} HTTP/1.1\nHost: ${knownHost}`,
+      responseStatus: '302 Found (Redirect)',
+      responseSample: `HTTP/1.1 302 Found\nLocation: ${project.rootUrl || 'http://localhost:3000'}`,
+    },
+  ];
+
+  function renderEndpointCard(item: (typeof endpointsList)[0]): string {
+    const methodBadge = {
+      GET: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+      POST: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      CONFIG: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+    }[item.method];
+
+    return `
+      <div class="p-3.5 bg-slate-900/90 hover:bg-slate-900 rounded-xl border border-slate-800 transition space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider border ${methodBadge}">${item.method}</span>
+            <span class="text-white font-sans font-semibold text-xs truncate">${item.name}</span>
+          </div>
+          <button data-copy="${item.url}" class="copy-btn shrink-0 p-1.5 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy URL" title="Copy URL">
+            ${icon('clipboard', 'w-3.5 h-3.5')}
+          </button>
+        </div>
+
+        <div class="bg-slate-950/80 px-2.5 py-1.5 rounded-lg border border-slate-800/60 overflow-hidden">
+          <span class="text-slate-300 text-[11px] font-mono break-all select-all block">${item.url}</span>
+        </div>
+
+        <p class="text-[11px] font-sans text-slate-400 leading-relaxed">${item.description}</p>
+
+        <!-- Collapsible Request & Response Sample -->
+        <details class="group border-t border-slate-800/80 pt-2 text-xs">
+          <summary class="cursor-pointer text-[11px] font-sans text-sky-400 hover:text-sky-300 flex items-center justify-between transition select-none py-1">
+            <span class="flex items-center gap-1.5 font-medium">
+              ${icon('terminal', 'w-3 h-3 text-orange-400')}
+              <span>Request &amp; Response Samples</span>
+            </span>
+            <span class="group-open:rotate-180 transition-transform text-slate-400">
+              ${icon('chevron-down', 'w-3.5 h-3.5')}
+            </span>
+          </summary>
+          <div class="mt-2.5 space-y-3 font-sans">
+            <!-- Request -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[10px] text-slate-400">
+                <span class="font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1">
+                  ${icon('zap', 'w-3 h-3 text-sky-400')} Request Sample
+                </span>
+                <button data-copy="${encodeURIComponent(item.requestSample)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Request</button>
+              </div>
+              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-200 overflow-x-auto whitespace-pre leading-relaxed">${escapeHtml(item.requestSample)}</pre>
+            </div>
+
+            <!-- Response -->
+            <div class="space-y-1">
+              <div class="flex items-center justify-between text-[10px] text-slate-400">
+                <span class="font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                  ${icon('check-circle', 'w-3 h-3 text-emerald-400')} ${item.responseStatus || '200 OK Response'}
+                </span>
+                <button data-copy="${encodeURIComponent(item.responseSample)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Response</button>
+              </div>
+              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre leading-relaxed">${escapeHtml(item.responseSample)}</pre>
+            </div>
+          </div>
+        </details>
+      </div>
+    `;
+  }
 
   container.innerHTML = `
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -201,76 +441,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
               }
             </div>
           </div>
-        </div>
 
-        <!-- Right: Endpoints & Integration Snippets -->
-        <div class="lg:col-span-7 space-y-6">
-          
-          <!-- Endpoints List -->
-          <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
-              ${icon('globe', 'w-4 h-4 text-orange-400')} Standard Microsoft Entra v2.0 Endpoints
-            </h3>
-
-            <div class="space-y-3 text-xs font-mono">
-              
-              <!-- OIDC Issuer -->
-              <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                <div class="min-w-0 flex-1 overflow-hidden">
-                  <span class="text-slate-400 font-sans block text-[11px] mb-0.5">OIDC Token Issuer (iss claim)</span>
-                  <span class="text-slate-200 truncate block">${issuerUrl}</span>
-                </div>
-                <button data-copy="${issuerUrl}" class="copy-btn shrink-0 p-2 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy">${icon('clipboard', 'w-3.5 h-3.5')}</button>
-              </div>
-
-              <!-- Authority -->
-              <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                <div class="min-w-0 flex-1 overflow-hidden">
-                  <span class="text-slate-400 font-sans block text-[11px] mb-0.5">Authority URL (MSAL.js)</span>
-                  <span class="text-slate-200 truncate block">${authorityUrl}</span>
-                </div>
-                <button data-copy="${authorityUrl}" class="copy-btn shrink-0 p-2 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy">${icon('clipboard', 'w-3.5 h-3.5')}</button>
-              </div>
-
-              <!-- OpenID Discovery -->
-              <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                <div class="min-w-0 flex-1 overflow-hidden">
-                  <span class="text-slate-400 font-sans block text-[11px] mb-0.5">OIDC Discovery (.well-known)</span>
-                  <span class="text-slate-200 truncate block">${discoveryUrl}</span>
-                </div>
-                <button data-copy="${discoveryUrl}" class="copy-btn shrink-0 p-2 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy">${icon('clipboard', 'w-3.5 h-3.5')}</button>
-              </div>
-
-              <!-- Token URL -->
-              <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                <div class="min-w-0 flex-1 overflow-hidden">
-                  <span class="text-slate-400 font-sans block text-[11px] mb-0.5">Token Endpoint (POST)</span>
-                  <span class="text-slate-200 truncate block">${tokenUrl}</span>
-                </div>
-                <button data-copy="${tokenUrl}" class="copy-btn shrink-0 p-2 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy">${icon('clipboard', 'w-3.5 h-3.5')}</button>
-              </div>
-
-              <!-- JWKS Keys -->
-              <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                <div class="min-w-0 flex-1 overflow-hidden">
-                  <span class="text-slate-400 font-sans block text-[11px] mb-0.5">JWKS Public Keys (RS256)</span>
-                  <span class="text-slate-200 truncate block">${jwksUrl}</span>
-                </div>
-                <button data-copy="${jwksUrl}" class="copy-btn shrink-0 p-2 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy">${icon('clipboard', 'w-3.5 h-3.5')}</button>
-              </div>
-
-              <!-- Logout -->
-              <div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                <div class="min-w-0 flex-1 overflow-hidden">
-                  <span class="text-slate-400 font-sans block text-[11px] mb-0.5">End Session / Logout</span>
-                  <span class="text-slate-200 truncate block">${logoutUrl}</span>
-                </div>
-                <button data-copy="${logoutUrl}" class="copy-btn shrink-0 p-2 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy">${icon('clipboard', 'w-3.5 h-3.5')}</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Code Snippets Tabs -->
+          <!-- Code Snippets Tabs (Moved under Project SSO Settings for height balance) -->
           <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -310,6 +482,31 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
               </div>
             </div>
 
+          </div>
+
+        </div>
+
+        <!-- Right: Endpoints -->
+        <div class="lg:col-span-7 space-y-6">
+          
+          <!-- Endpoints List -->
+          <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                ${icon('globe', 'w-4 h-4 text-orange-400')} Standard Microsoft Entra v2.0 &amp; Directory Endpoints
+              </h3>
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                ${endpointsList.length} Endpoints
+              </span>
+            </div>
+
+            <p class="text-xs text-slate-400">
+              Complete OAuth2, OpenID Connect, and Mock User Directory endpoints compatible with Microsoft Entra ID v2.0. Click any endpoint's <strong class="text-slate-300">Request &amp; Response Samples</strong> to inspect HTTP formats and JSON payloads.
+            </p>
+
+            <div class="space-y-3 font-sans">
+              ${endpointsList.map((ep) => renderEndpointCard(ep)).join('')}
+            </div>
           </div>
 
         </div>

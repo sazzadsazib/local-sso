@@ -75,9 +75,9 @@ export async function renderLoginView(container: HTMLElement) {
 
             <div class="space-y-4">
               <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Sign in as Mock User</label>
+                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Sign in as Mock User (login_hint)</label>
                 <select id="selectTestUser" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3.5 py-2.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                  <option value="">Prompt Interactive Account Picker</option>
+                  <option value="">None (interactive picker / default)</option>
                   ${mockUsers
                     .map(
                       (u) =>
@@ -94,16 +94,28 @@ export async function renderLoginView(container: HTMLElement) {
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label class="block text-xs font-semibold text-slate-400 mb-1.5">Prompt Mode</label>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1.5">Prompt Mode (prompt)</label>
                   <select id="selectTestPrompt" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                    <option value="select_account" selected>select_account</option>
-                    <option value="none">none (Instant auto-login)</option>
-                    <option value="consent">consent</option>
+                    <option value="select_account" selected>select_account &mdash; Account Picker</option>
+                    <option value="consent">consent &mdash; Permissions & Consent</option>
+                    <option value="none">none &mdash; Silent / Instant Auto-Login</option>
+                    <option value="login">login &mdash; Re-authentication</option>
                   </select>
                 </div>
                 <div>
                   <label class="block text-xs font-semibold text-slate-400 mb-1.5">PKCE Method</label>
                   <input type="text" value="S256 (SHA-256)" disabled class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm font-mono text-slate-400 cursor-not-allowed" />
+                </div>
+              </div>
+
+              <!-- Live Authorize URL Preview -->
+              <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400 space-y-1">
+                <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500 flex items-center justify-between">
+                  <span>Authorize Request Preview</span>
+                  <span id="previewPromptTag" class="text-sky-400 font-semibold lowercase">prompt=select_account</span>
+                </div>
+                <div id="liveAuthUrlPreview" class="text-sky-300 break-all select-all font-mono leading-relaxed text-[11px]">
+                  /${tenant}/oauth2/v2.0/authorize?prompt=select_account
                 </div>
               </div>
             </div>
@@ -152,6 +164,34 @@ export async function renderLoginView(container: HTMLElement) {
       </div>
     `;
 
+    const userSelect = document.getElementById('selectTestUser') as HTMLSelectElement | null;
+    const promptSelect = document.getElementById('selectTestPrompt') as HTMLSelectElement | null;
+    const scopeInput = document.getElementById('inputTestScope') as HTMLInputElement | null;
+    const previewPromptTag = document.getElementById('previewPromptTag');
+    const liveAuthUrlPreview = document.getElementById('liveAuthUrlPreview');
+
+    const updateAuthPreview = () => {
+      const selectedEmail = userSelect?.value || '';
+      const prompt = promptSelect?.value || 'select_account';
+      if (previewPromptTag) {
+        previewPromptTag.textContent = `prompt=${prompt}${selectedEmail ? ' · ' + selectedEmail : ''}`;
+      }
+      if (liveAuthUrlPreview) {
+        let preview = `/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
+          project.clientId
+        )}&response_type=code&prompt=${encodeURIComponent(prompt)}`;
+        if (selectedEmail) {
+          preview += `&login_hint=${encodeURIComponent(selectedEmail)}`;
+        }
+        liveAuthUrlPreview.textContent = preview;
+      }
+    };
+
+    userSelect?.addEventListener('change', updateAuthPreview);
+    promptSelect?.addEventListener('change', updateAuthPreview);
+    scopeInput?.addEventListener('input', updateAuthPreview);
+    updateAuthPreview();
+
     document.getElementById('btnStartAuth')?.addEventListener('click', async () => {
       const selectedEmail = (document.getElementById('selectTestUser') as HTMLSelectElement).value;
       const scope = (document.getElementById('inputTestScope') as HTMLInputElement).value;
@@ -195,7 +235,7 @@ export async function renderLoginView(container: HTMLElement) {
   const decodedId = session.id_token ? decodeJWT(session.id_token) : null;
   const decodedAccess = session.access_token ? decodeJWT(session.access_token) : null;
 
-  const authBearerCurl = `curl -X GET "http://localhost:${window.location.port || '8080'}/api/users" \\
+  const authBearerCurl = `curl -X GET "${effectiveOrigin}/${tenant}/oidc/userinfo" \\
   -H "Authorization: Bearer ${session.access_token}"`;
 
   container.innerHTML = `

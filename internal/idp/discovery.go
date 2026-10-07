@@ -12,6 +12,7 @@ type OpenIDConfiguration struct {
 	TokenEndpoint                         string   `json:"token_endpoint"`
 	TokenEndpointAuthMethodsSupported     []string `json:"token_endpoint_auth_methods_supported"`
 	JWKSURI                               string   `json:"jwks_uri"`
+	UserinfoEndpoint                      string   `json:"userinfo_endpoint,omitempty"`
 	ResponseModesSupported                []string `json:"response_modes_supported"`
 	ResponseTypesSupported                []string `json:"response_types_supported"`
 	ScopesSupported                       []string `json:"scopes_supported"`
@@ -45,7 +46,8 @@ func GenerateDiscoveryFromOrigin(origin, tenant, issuerMode string) OpenIDConfig
 			"client_secret_basic",
 			"none",
 		},
-		JWKSURI: fmt.Sprintf("%s/discovery/v2.0/keys", base),
+		JWKSURI:          fmt.Sprintf("%s/discovery/v2.0/keys", base),
+		UserinfoEndpoint: fmt.Sprintf("%s/oidc/userinfo", base),
 		ResponseModesSupported: []string{
 			"query",
 			"fragment",
