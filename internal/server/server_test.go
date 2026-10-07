@@ -291,3 +291,147 @@ func TestCompletePKCEFlow(t *testing.T) {
 		t.Fatalf("expected 200 for refresh grant, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestAuthorizeEndpointLoginHint(t *testing.T) {
+	srv := setupTestServer(t)
+	handler := srv.Handler()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/common/oauth2/v2.0/authorize?client_id=client-app-1&redirect_uri=http://localhost:3000/auth&response_type=code&scope=openid+profile&login_hint=rifat@gmail.com&prompt=select_account", nil)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for authorize prompt, got %d", rec.Code)
+	}
+
+	body := rec.Body.String()
+	// Should have default selected user set to user-2
+	if !strings.Contains(body, `value="user-2"`) {
+		t.Errorf("expected selectedUserId to be user-2, body did not contain value=\"user-2\"")
+	}
+
+	// Should highlight Iftekhar Rifat as selected
+	rifatSelected := strings.Contains(body, `class="user-option selected" onclick="selectUser('user-2'`)
+	if !rifatSelected {
+		t.Errorf("expected user-2 (Iftekhar Rifat) to have class 'user-option selected'")
+	}
+
+	// user-1 (Sazib) should NOT be selected
+	sazibSelected := strings.Contains(body, `class="user-option selected" onclick="selectUser('user-1'`)
+	if sazibSelected {
+		t.Errorf("user-1 (Sazzad Sazib) should NOT be selected when login_hint is rifat@gmail.com")
+	}
+}
+
+func TestUserInfoEndpoint(t *testing.T) {
+	srv := setupTestServer(t)
+	handler := srv.Handler()
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/common/oidc/userinfo", nil)
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for userinfo endpoint, got %d", rec.Code)
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &data); err != nil {
+		t.Fatalf("failed to parse userinfo json: %v", err)
+	}
+
+	if data["email"] == "" || data["sub"] == "" {
+		t.Errorf("userinfo response missing email or sub: %+v", data)
+	}
+}
+
+func TestAuthorizeEndpointPromptModes(t *testing.T) {
+	srv := setupTestServer(t)
+	handler := srv.Handler()
+
+	t.Run("prompt=none without login_hint (instant auto-login)", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/common/oauth2/v2.0/authorize?client_id=client-app-1&redirect_uri=http://localhost:3000/auth&response_type=code&scope=openid+profile&prompt=none&state=state123", nil)
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusFound {
+			t.Fatalf("expected 302 Found for prompt=none auto-login, got %d", rec.Code)
+		}
+		loc := rec.Header().Get("Location")
+		if !strings.Contains(loc, "code=") {
+			t.Errorf("expected location header to contain code, got %s", loc)
+		}
+		if !strings.Contains(loc, "state=state123") {
+			t.Errorf("expected location header to preserve state, got %s", loc)
+		}
+	})
+
+	t.Run("prompt=none with valid login_hint", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/common/oauth2/v2.0/authorize?client_id=client-app-1&redirect_uri=http://localhost:3000/auth&response_type=code&scope=openid+profile&prompt=none&login_hint=rifat@gmail.com&state=state456", nil)
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusFound {
+			t.Fatalf("expected 302 Found for prompt=none with hint, got %d", rec.Code)
+		}
+		loc := rec.Header().Get("Location")
+		if !strings.Contains(loc, "code=") {
+			t.Errorf("expected location header to contain code, got %s", loc)
+		}
+	})
+
+	t.Run("prompt=none with non-existent login_hint", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/common/oauth2/v2.0/authorize?client_id=client-app-1&redirect_uri=http://localhost:3000/auth&response_type=code&scope=openid+profile&prompt=none&login_hint=unknown@example.com&state=state789", nil)
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusFound {
+			t.Fatalf("expected 302 Found error redirect for prompt=none with bad hint, got %d", rec.Code)
+		}
+		loc := rec.Header().Get("Location")
+		if !strings.Contains(loc, "error=login_required") {
+			t.Errorf("expected location to contain error=login_required, got %s", loc)
+		}
+	})
+
+	t.Run("prompt=consent renders consent screen", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/common/oauth2/v2.0/authorize?client_id=client-app-1&redirect_uri=http://localhost:3000/auth&response_type=code&scope=openid+profile+email+offline_access&prompt=consent", nil)
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK for prompt=consent, got %d", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "prompt=consent") {
+			t.Errorf("expected body to contain prompt=consent badge")
+		}
+		if !strings.Contains(body, "Permissions Requested") {
+			t.Errorf("expected body to contain 'Permissions Requested'")
+		}
+		if !strings.Contains(body, "Accept &amp; Grant Permissions") && !strings.Contains(body, "Accept & Grant Permissions") {
+			t.Errorf("expected body to contain 'Accept & Grant Permissions' button")
+		}
+		if !strings.Contains(body, "offline_access") {
+			t.Errorf("expected body to list requested scopes like offline_access")
+		}
+	})
+
+	t.Run("prompt=login renders fresh sign-in screen", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/common/oauth2/v2.0/authorize?client_id=client-app-1&redirect_uri=http://localhost:3000/auth&response_type=code&scope=openid+profile&prompt=login", nil)
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK for prompt=login, got %d", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "prompt=login") {
+			t.Errorf("expected body to contain prompt=login badge")
+		}
+		if !strings.Contains(body, "Sign in to your account") {
+			t.Errorf("expected body to contain 'Sign in to your account'")
+		}
+	})
+}
+

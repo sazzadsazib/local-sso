@@ -149,8 +149,10 @@ On startup the server binds to `localhost` only and prints:
 
 | Flag | Default | Description | Example |
 |---|---|---|---|
-| `-port` | `8080` | Port to listen on (`localhost:<port>`) | `sso-local -port 3000` |
-| `-tenant` | `common` | Default tenant alias or GUID | `sso-local -tenant my-tenant-id` |
+| `-port`, `-p` | `8080` | Port to listen on (`localhost:<port>`) | `sso-local -p 3000` |
+| `-tenant`, `-t` | `common` | Default tenant alias or GUID | `sso-local -t my-tenant-id` |
+| `-base-url`, `-b` | `""` | Override base URL for OIDC metadata (e.g. ngrok/tunnels) | `sso-local -b https://xxxx.ngrok-free.app` |
+| `-issuer-mode` | `host` | Issuer format: `host` (default) or `entra` | `sso-local -issuer-mode entra` |
 | `-no-browser` | `false` | Do not auto-open the browser | `sso-local -no-browser` |
 
 ### Stop the server

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sso-local
+    runtime: docker
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0

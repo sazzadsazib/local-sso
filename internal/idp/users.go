@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 )
 
@@ -88,7 +90,7 @@ func NewUserStore() *UserStore {
 	return store
 }
 
-// List returns all mock users.
+// List returns all mock users, sorted deterministically by ID.
 func (s *UserStore) List() []MockUser {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -96,19 +98,28 @@ func (s *UserStore) List() []MockUser {
 	for _, u := range s.users {
 		list = append(list, u)
 	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].ID < list[j].ID
+	})
 	return list
 }
 
-// Get finds a user by ID or preferred_username or email.
+// Get finds a user by ID, preferred_username, email, or display name (case-insensitive).
 func (s *UserStore) Get(idOrEmail string) (MockUser, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if u, ok := s.users[idOrEmail]; ok {
+	trimmed := strings.TrimSpace(idOrEmail)
+	if u, ok := s.users[trimmed]; ok {
 		return u, true
 	}
 	for _, u := range s.users {
-		if u.Email == idOrEmail || u.PreferredUsername == idOrEmail {
+		if strings.EqualFold(u.Email, trimmed) ||
+			strings.EqualFold(u.PreferredUsername, trimmed) ||
+			u.ID == trimmed ||
+			u.SubjectID == trimmed ||
+			u.ObjectID == trimmed ||
+			strings.EqualFold(u.DisplayName, trimmed) {
 			return u, true
 		}
 	}
