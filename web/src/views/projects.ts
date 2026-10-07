@@ -8,7 +8,7 @@ function projectCard(p: Profile, isActive: boolean): string {
     ? `${p.host.replace(/\/+$/, '')}/${p.tenant}`
     : `http://localhost:8080/${p.tenant}`;
   return `
-    <div class="glass-panel glass-hover p-5 rounded-2xl space-y-3 relative flex flex-col justify-between ${
+    <div class="tilt-card glass-panel glass-hover p-5 rounded-2xl space-y-3 relative flex flex-col justify-between ${
       isActive ? 'border-sky-500/40 shadow-lg shadow-sky-500/10' : ''
     }">
       ${isActive ? '<span class="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30">Active</span>' : ''}

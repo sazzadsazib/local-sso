@@ -117,37 +117,25 @@ func (s *Signer) GenerateTokens(user MockUser, clientID, tenant, nonce, scope, i
 		return nil, fmt.Errorf("sign id_token: %w", err)
 	}
 
-	// 2. Build Access Token Claims (includes user info for decoding)
+	// 2. Build Access Token Claims (standard Entra v2.0 shape: authorization & scope claims only)
 	accessClaims := map[string]interface{}{
-		"iss":                issuer,
-		"sub":                user.SubjectID,
-		"aud":                clientID,
-		"exp":                exp,
-		"nbf":                now,
-		"iat":                now,
-		"oid":                user.ObjectID,
-		"tid":                user.TenantID,
-		"scp":                scope,
-		"appid":              clientID,
-		"ver":                "2.0",
-		"email":              user.Email,
-		"preferred_username": user.PreferredUsername,
-		"name":               user.DisplayName,
-	}
-	if user.GivenName != "" {
-		accessClaims["given_name"] = user.GivenName
-	}
-	if user.FamilyName != "" {
-		accessClaims["family_name"] = user.FamilyName
+		"iss":   issuer,
+		"sub":   user.SubjectID,
+		"aud":   clientID,
+		"exp":   exp,
+		"nbf":   now,
+		"iat":   now,
+		"oid":   user.ObjectID,
+		"tid":   user.TenantID,
+		"scp":   scope,
+		"appid": clientID,
+		"ver":   "2.0",
 	}
 	if len(user.Roles) > 0 {
 		accessClaims["roles"] = user.Roles
 	}
 	if len(user.Groups) > 0 {
 		accessClaims["groups"] = user.Groups
-	}
-	for k, v := range user.CustomClaims {
-		accessClaims[k] = v
 	}
 
 	accessToken, err := s.SignToken(accessClaims)

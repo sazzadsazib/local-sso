@@ -233,7 +233,7 @@ export async function renderLoginView(container: HTMLElement) {
       <div id="verifyAlert" class="hidden p-4 rounded-2xl border text-xs font-mono"></div>
 
       <!-- User Identity Breakdown -->
-      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-3">
+      <div class="tilt-card glass-panel glass-hover p-6 rounded-2xl space-y-3">
         <h2 class="text-sm font-bold text-white flex items-center gap-2">
           ${icon('user', 'w-4 h-4 text-orange-400')} Authenticated Identity Profile (from ID Token)
         </h2>

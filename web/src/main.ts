@@ -7,6 +7,8 @@ import { getPKCEState, saveSession, clearPKCEState, saveActiveProject, getActive
 import { exchangeToken } from './api';
 import { showToast } from './components/toast';
 import { icon } from './components/icons';
+import { initCardTilt } from './components/tilt';
+import { initCursorGlow } from './components/glow';
 
 const app = document.getElementById('app')!;
 
@@ -184,3 +186,5 @@ window.addEventListener('hashchange', () => {
 
 // Initial boot
 route();
+initCardTilt();
+initCursorGlow();
