@@ -14,9 +14,10 @@ import (
 	"runtime"
 	"sso-local/internal/server"
 	"time"
+	_ "time/tzdata"
 )
 
-//go:embed all:web
+//go:embed all:web/dist
 var webFS embed.FS
 
 func main() {

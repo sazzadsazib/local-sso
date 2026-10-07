@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"net"
 	"net/http"
 	"net/url"
 	"sso-local/internal/idp"
+	"strconv"
 	"strings"
 )
 
@@ -20,10 +22,31 @@ func extractTenant(path string) string {
 	return "common"
 }
 
+// publicHostPort derives the externally reachable host/port from the request
+// Host header so discovery documents stay correct when sso-local runs behind a
+// reverse proxy (e.g. the Vite dev server). A port of 0 means "default HTTP
+// port" and is omitted from generated URLs.
+func publicHostPort(r *http.Request, fallbackPort int) (string, int) {
+	h := r.Host
+	if h == "" {
+		return "127.0.0.1", fallbackPort
+	}
+	if host, port, err := net.SplitHostPort(h); err == nil && host != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			if strings.Contains(host, ":") && !strings.HasPrefix(host, "[") {
+				host = "[" + host + "]"
+			}
+			return host, p
+		}
+	}
+	return h, 0
+}
+
 // HandleDiscoveryEndpoint serves OIDC discovery JSON for the requested tenant.
 func (s *Server) HandleDiscoveryEndpoint(w http.ResponseWriter, r *http.Request) {
 	tenant := extractTenant(r.URL.Path)
-	doc := idp.GenerateDiscovery("127.0.0.1", s.Port, tenant)
+	host, port := publicHostPort(r, s.Port)
+	doc := idp.GenerateDiscovery(host, port, tenant)
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
@@ -44,31 +67,50 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>sso-local — Mock Sign-in Prompt</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1.5rem; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); max-width: 480px; width: 100%; padding: 2rem; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; margin-bottom: 1rem; }
-    h1 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem; }
-    p.subtitle { color: #94a3b8; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.5rem; }
-    .client-info { background: #0f172a; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.8rem; border: 1px solid #1e293b; }
+    body { font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; padding: 1.5rem 1rem;
+      background-color: #000;
+      background-image: radial-gradient(600px circle at 15% -10%, rgba(255,105,0,0.18), transparent 60%), radial-gradient(700px circle at 85% 0%, rgba(255,255,255,0.06), transparent 55%);
+      position: relative; z-index: 0; }
+    body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background-image: linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 100% 70% at 50% 0%, #000 30%, transparent 85%);
+      -webkit-mask-image: radial-gradient(ellipse 100% 70% at 50% 0%, #000 30%, transparent 85%); }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+      backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
+      box-shadow: 0 1px 0 0 rgba(255,255,255,0.06) inset, 0 30px 60px -30px rgba(0,0,0,0.95); max-width: 480px; width: 100%; padding: 2rem; margin: auto 0; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,105,0,0.12); color: #ff9733; border: 1px solid rgba(255,105,0,0.3); padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; margin-bottom: 1rem; }
+    h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; margin-bottom: 0.5rem; }
+    p.subtitle { color: #a1a1a1; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.5rem; }
+    .client-info { background: rgba(0,0,0,0.45); border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.08); }
     .client-info div { display: flex; justify-content: space-between; margin-bottom: 0.4rem; }
     .client-info div:last-child { margin-bottom: 0; }
-    .client-info span.label { color: #64748b; }
-    .client-info span.val { color: #e2e8f0; font-family: monospace; word-break: break-all; text-align: right; max-width: 260px; }
+    .client-info span.label { color: #737373; }
+    .client-info span.val { color: #ebebeb; font-family: "Geist Mono", ui-monospace, monospace; word-break: break-all; text-align: right; max-width: 260px; }
+    .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; color: #737373; margin-bottom: 0.5rem; }
     .user-list { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
-    .user-option { display: flex; align-items: center; justify-content: space-between; background: #273549; border: 2px solid transparent; border-radius: 10px; padding: 0.85rem 1rem; cursor: pointer; transition: all 0.15s ease; }
-    .user-option:hover { border-color: #38bdf8; background: #2d3e56; }
-    .user-option.selected { border-color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
-    .avatar { width: 36px; height: 36px; border-radius: 50%; background: #38bdf8; color: #0f172a; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.875rem; }
+    .user-option { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.85rem 1rem; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
+    .user-option:hover { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); }
+    .user-option.selected { border-color: #ff6900; background: rgba(255,105,0,0.12); box-shadow: 0 0 0 1px rgba(255,105,0,0.35); }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; background: #ff6900; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; }
     .user-meta { margin-left: 0.75rem; flex: 1; text-align: left; }
-    .user-name { font-weight: 600; font-size: 0.9rem; color: #f8fafc; }
-    .user-email { color: #94a3b8; font-size: 0.75rem; }
-    .user-role { font-size: 0.7rem; background: #334155; color: #94a3b8; padding: 2px 6px; border-radius: 4px; }
-    .btn-submit { width: 100%; background: #0284c7; color: white; border: none; border-radius: 8px; padding: 0.85rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-    .btn-submit:hover { background: #0369a1; }
-    .btn-cancel { width: 100%; background: transparent; color: #94a3b8; border: 1px solid #334155; border-radius: 8px; padding: 0.7rem; font-size: 0.85rem; cursor: pointer; margin-top: 0.5rem; }
-    .btn-cancel:hover { background: #334155; color: #f8fafc; }
+    .user-name { font-weight: 600; font-size: 0.9rem; color: #fff; }
+    .user-email { color: #a1a1a1; font-size: 0.75rem; }
+    .user-role { font-size: 0.7rem; background: rgba(255,255,255,0.08); color: #a1a1a1; padding: 2px 6px; border-radius: 4px; }
+    .btn-submit { width: 100%; background: #fff; color: #000; border: 1px solid rgba(255,255,255,0.9); border-radius: 8px; padding: 0.85rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s; font-family: inherit; }
+    .btn-submit:hover { background: #ebebeb; border-color: #ebebeb; }
+    .btn-cancel { width: 100%; background: transparent; color: #a1a1a1; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.7rem; font-size: 0.85rem; cursor: pointer; margin-top: 0.5rem; font-family: inherit; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+    .btn-cancel:hover { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.2); }
+    ::selection { background: #ff6900; color: #fff; }
+    .credit { margin-top: 1.25rem; padding: 0 0.5rem; width: 100%; font-size: 0.75rem; color: #737373; text-align: center; flex-shrink: 0; }
+    .credit a { color: #a1a1a1; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.15); }
+    .credit a:hover { color: #ff9733; border-color: rgba(255,105,0,0.5); }
   </style>
 </head>
 <body>
@@ -99,7 +141,7 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
       <input type="hidden" name="tenant" value="{{.Tenant}}">
       <input type="hidden" name="user_id" id="selectedUserId" value="{{.DefaultUserID}}">
 
-      <p style="font-size: 0.8rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.5rem;">SELECT IDENTITY:</p>
+      <p class="section-label">SELECT IDENTITY</p>
       <div class="user-list">
         {{range $index, $u := .Users}}
         <div class="user-option {{if eq $index 0}}selected{{end}}" onclick="selectUser('{{$u.ID}}', this)">
@@ -117,6 +159,8 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
       <button type="button" class="btn-cancel" onclick="cancelLogin('{{.RedirectURI}}', '{{.State}}')">Cancel</button>
     </form>
   </div>
+
+  <p class="credit">Developed by <a href="https://github.com/sazzadsazib" target="_blank" rel="noopener noreferrer">Sazzad Sazib &middot; @sazzadsazib</a></p>
 
   <script>
     function selectUser(id, el) {
@@ -366,5 +410,5 @@ func (s *Server) HandleLogoutEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;height:100vh;"><h2>You have signed out of sso-local.</h2></body></html>`))
+	_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet"></head><body style="font-family:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#000;color:#f5f5f5;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="border:1px solid rgba(255,255,255,0.1);background:linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));backdrop-filter:blur(20px);border-radius:16px;padding:2rem 2.5rem;text-align:center;box-shadow:0 1px 0 0 rgba(255,255,255,0.06) inset;"><h2 style="margin:0 0 0.5rem;font-size:1.25rem;letter-spacing:-0.02em;">You have signed out of sso-local.</h2><p style="margin:0;color:#a1a1a1;font-size:0.875rem;">Close this tab or <a href="/#login" style="color:#ff6900;text-decoration:none;">return to the dashboard</a>.</p></div></body></html>`))
 }

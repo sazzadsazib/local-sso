@@ -38,3 +38,6 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Dev runner artifacts
+/.dev/

@@ -1,6 +1,7 @@
 import { getActiveProfile, getSession, saveSession, clearSession, savePKCEState } from '../storage';
 import { decodeJWT, exchangeToken, verifyIDToken, fetchMockUsers } from '../api';
 import { showToast } from '../components/toast';
+import { icon } from '../components/icons';
 import { PKCEState, MockUser } from '../types';
 
 async function generatePKCE() {
@@ -51,9 +52,9 @@ export async function renderLoginView(container: HTMLElement) {
       <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         
         <!-- Header -->
-        <div class="glass-panel p-8 rounded-3xl text-center space-y-4 max-w-3xl mx-auto border border-slate-800 shadow-2xl bg-gradient-to-b from-slate-900/90 to-slate-950">
+        <div class="glass-panel glass-hero p-8 rounded-3xl text-center space-y-4 max-w-3xl mx-auto">
           <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 mx-auto flex items-center justify-center text-3xl shadow-lg shadow-sky-500/20">
-            🚀
+            ${icon('rocket', 'w-7 h-7 text-white')}
           </div>
           <div class="space-y-1">
             <h1 class="text-2xl sm:text-3xl font-extrabold text-white">OAuth2 / OIDC In-App Test Client</h1>
@@ -65,9 +66,9 @@ export async function renderLoginView(container: HTMLElement) {
         <div class="grid grid-cols-1 md:grid-cols-12 gap-8 max-w-4xl mx-auto">
           
           <!-- Test Parameters Form -->
-          <div class="md:col-span-7 glass-panel p-6 rounded-2xl space-y-5">
+          <div class="md:col-span-7 glass-panel glass-hover p-6 rounded-2xl space-y-5">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
-              <span>⚙️</span> Authentication Parameters
+              ${icon('settings', 'w-4 h-4 text-orange-400')} Authentication Parameters
             </h2>
 
             <div class="space-y-4">
@@ -89,7 +90,7 @@ export async function renderLoginView(container: HTMLElement) {
                 <input id="inputTestScope" type="text" value="${profile.scope}" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
 
-              <div class="grid grid-cols-2 gap-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label class="block text-xs font-semibold text-slate-400 mb-1.5">Prompt Mode</label>
                   <select id="selectTestPrompt" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:outline-none">
@@ -107,16 +108,16 @@ export async function renderLoginView(container: HTMLElement) {
 
             <div class="pt-3 space-y-2">
               <button id="btnStartAuth" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold rounded-xl transition shadow-xl shadow-sky-500/25 flex items-center justify-center gap-2 text-sm">
-                <span>🚀 Launch OAuth2 + PKCE Test Flow</span>
+                ${icon('zap', 'w-4 h-4')} Launch OAuth2 + PKCE Test Flow
               </button>
             </div>
           </div>
 
           <!-- Flow Summary & Info -->
-          <div class="md:col-span-5 glass-panel p-6 rounded-2xl space-y-4 flex flex-col justify-between">
+          <div class="md:col-span-5 glass-panel glass-hover p-6 rounded-2xl space-y-4 flex flex-col justify-between">
             <div>
               <h2 class="text-base font-bold text-white mb-3 flex items-center gap-2">
-                <span>🔍</span> Flow Execution Steps
+                ${icon('search', 'w-4 h-4 text-orange-400')} Flow Execution Steps
               </h2>
               <ol class="space-y-3 text-xs text-slate-300">
                 <li class="flex items-start gap-2.5">
@@ -139,7 +140,7 @@ export async function renderLoginView(container: HTMLElement) {
             </div>
 
             <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400">
-              <span class="text-emerald-400 font-semibold block mb-0.5">✓ Target Authority:</span>
+              <span class="flex items-center gap-1.5 text-emerald-400 font-semibold mb-0.5">${icon('check-circle', 'w-3.5 h-3.5')} Target Authority</span>
               <span class="text-slate-300 truncate block">${origin}/${tenant}</span>
             </div>
           </div>
@@ -199,26 +200,26 @@ export async function renderLoginView(container: HTMLElement) {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
       <!-- Session Header Card -->
-      <div class="glass-panel p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 border-emerald-500/30 bg-gradient-to-r from-slate-900 via-slate-900/90 to-emerald-950/20 shadow-2xl">
-        <div class="flex items-center gap-4">
-          <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-sky-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg shadow-emerald-500/20">
-            ✓
+      <div class="glass-panel glass-success p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-center gap-4 min-w-0 flex-1">
+          <div class="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+            ${icon('check', 'w-7 h-7', 2.5)}
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <h1 class="text-xl font-bold text-white">${decodedId?.payload?.name || 'Active SSO Session'}</h1>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="text-xl font-bold text-white break-words min-w-0">${decodedId?.payload?.name || 'Active SSO Session'}</h1>
               <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">Session Active</span>
             </div>
-            <p class="text-xs text-slate-400 font-mono mt-0.5">${decodedId?.payload?.preferred_username || decodedId?.payload?.email || 'Authenticated User'}</p>
+            <p class="text-xs text-slate-400 font-mono mt-0.5 break-all">${decodedId?.payload?.preferred_username || decodedId?.payload?.email || 'Authenticated User'}</p>
           </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
           <button id="btnVerify" class="px-4 py-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-semibold rounded-xl border border-sky-500/30 transition flex items-center gap-1.5 shadow-sm">
-            <span>🛡️ Verify JWKS Signature</span>
+            ${icon('shield', 'w-3.5 h-3.5')} Verify JWKS Signature
           </button>
           <button id="btnRefresh" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition flex items-center gap-1.5">
-            <span>🔄 Test Token Refresh</span>
+            ${icon('refresh', 'w-3.5 h-3.5')} Test Token Refresh
           </button>
           <button id="btnLogout" class="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold rounded-xl border border-rose-500/30 transition">
             Sign Out
@@ -230,9 +231,9 @@ export async function renderLoginView(container: HTMLElement) {
       <div id="verifyAlert" class="hidden p-4 rounded-2xl border text-xs font-mono"></div>
 
       <!-- User Identity Breakdown -->
-      <div class="glass-panel p-6 rounded-2xl space-y-3">
+      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-3">
         <h2 class="text-sm font-bold text-white flex items-center gap-2">
-          <span>👤</span> Authenticated Identity Profile (from ID Token)
+          ${icon('user', 'w-4 h-4 text-orange-400')} Authenticated Identity Profile (from ID Token)
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
           <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-900">
@@ -258,10 +259,10 @@ export async function renderLoginView(container: HTMLElement) {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         <!-- ID Token -->
-        <div class="glass-panel p-6 rounded-2xl space-y-4">
-          <div class="flex items-center justify-between">
+        <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
-              <span>🪪</span> ID Token (OIDC Claims)
+              ${icon('id-card', 'w-4 h-4 text-orange-400')} ID Token (OIDC Claims)
             </h2>
             <button data-copy="${session.id_token}" class="copy-raw-btn text-xs text-sky-400 hover:underline">Copy Raw JWT</button>
           </div>
@@ -294,10 +295,10 @@ export async function renderLoginView(container: HTMLElement) {
         </div>
 
         <!-- Access Token & Session Details -->
-        <div class="glass-panel p-6 rounded-2xl space-y-4">
-          <div class="flex items-center justify-between">
+        <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
-              <span>🔑</span> Access Token & Refresh Token
+              ${icon('key', 'w-4 h-4 text-orange-400')} Access Token &amp; Refresh Token
             </h2>
             <button data-copy="${session.access_token}" class="copy-raw-btn text-xs text-sky-400 hover:underline">Copy Access Token</button>
           </div>
@@ -350,7 +351,7 @@ export async function renderLoginView(container: HTMLElement) {
 
       if (res.verified) {
         alertEl.className = 'p-4 rounded-xl border bg-emerald-950/60 border-emerald-500/40 text-emerald-200 text-xs font-mono block';
-        alertEl.innerHTML = `✓ RS256 JWKS Signature Verified Successfully! Key ID: sso-local-key-1, Issuer: ${res.claims?.iss || issuer}, Subject: ${res.claims?.sub}`;
+        alertEl.innerHTML = `RS256 JWKS signature verified successfully! Key ID: sso-local-key-1, Issuer: ${res.claims?.iss || issuer}, Subject: ${res.claims?.sub}`;
         showToast('Token signature is valid!');
       } else {
         alertEl.className = 'p-4 rounded-xl border bg-rose-950/60 border-rose-500/40 text-rose-200 text-xs font-mono block';

@@ -26,7 +26,10 @@ func GenerateDiscovery(host string, port int, tenant string) OpenIDConfiguration
 	if tenant == "" {
 		tenant = "common"
 	}
-	base := fmt.Sprintf("http://%s:%d/%s", host, port, tenant)
+	base := fmt.Sprintf("http://%s/%s", host, tenant)
+	if port > 0 {
+		base = fmt.Sprintf("http://%s:%d/%s", host, port, tenant)
+	}
 
 	return OpenIDConfiguration{
 		Issuer:                fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant),
