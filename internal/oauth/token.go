@@ -68,8 +68,8 @@ func DefaultHTTPClient() *http.Client {
 }
 
 // isAllowedTarget reports whether urlStr is safe to call from the server-side
-// proxy: https only, or plain http when targeting loopback hosts. This keeps
-// /api/token and /api/discovery from being abused as an SSRF relay.
+// proxy: both http and https are permitted. This keeps /api/token and
+// /api/discovery from being abused as an SSRF relay for arbitrary schemes.
 func isAllowedTarget(urlStr string) error {
 	u, err := url.Parse(urlStr)
 	if err != nil {
@@ -79,21 +79,11 @@ func isAllowedTarget(urlStr string) error {
 		return fmt.Errorf("invalid target url: missing host")
 	}
 	switch strings.ToLower(u.Scheme) {
-	case "https":
+	case "http", "https":
 		return nil
-	case "http":
-		if isLoopbackHost(u.Hostname()) {
-			return nil
-		}
-		return fmt.Errorf("insecure http target %q is only allowed for loopback hosts", u.Hostname())
 	default:
 		return fmt.Errorf("unsupported scheme %q in target url", u.Scheme)
 	}
-}
-
-func isLoopbackHost(host string) bool {
-	h := strings.ToLower(host)
-	return h == "localhost" || h == "127.0.0.1" || h == "::1"
 }
 
 // IsAllowedTarget exposes the SSRF guard for server-side validation.
