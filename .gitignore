@@ -1,4 +1,6 @@
 # Compiled Binaries
+local-sso
+local-sso.exe
 sso-local
 sso-local.exe
 *.exe

@@ -1,205 +1,340 @@
-# sso-local
+# local-sso
 
 > **A single-binary developer tool that runs a Local Mock Microsoft Entra ID (OIDC) Identity Provider & In-App SSO Test Playground.**
 
 Developed by **[Sazzad Sazib](https://github.com/sazzadsazib)** ([@sazzadsazib](https://github.com/sazzadsazib)).
 
-`sso-local` eliminates the friction of creating Azure/Entra app registrations and enterprise tenant configurations during local development. It runs a zero-dependency local OAuth2 / OpenID Connect server on `http://localhost:8080` that emits Microsoft Entra v2.0-compatible tokens, serves standard discovery and JWKS endpoints, and provides a modern embedded web UI (TypeScript & Tailwind CSS, Vercel-style glassmorphism) to manage mock users, copy frontend integration URLs, and test authentication flows right inside the browser.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-local--sso.onrender.com-orange?style=for-the-badge&logo=render)](https://local-sso.onrender.com)
+[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=for-the-badge&logo=go)](https://golang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
 ---
 
-## 1. Build
+## 🌐 Live Cloud Demo
 
-The web frontend is embedded into the Go binary (`//go:embed all:web`). **Always build the frontend first**, otherwise the binary ships a stale/empty UI.
+You can try `local-sso` immediately in your browser without installing anything:
 
-### Option A — One-command build
+👉 **[https://local-sso.onrender.com](https://local-sso.onrender.com)**
 
-#### WSL / Linux / macOS:
-```bash
-./build.sh
+The live deployment lets you:
+- Explore the interactive **Web Dashboard** (`/#projects`) and copy pre-assembled authorization URLs.
+- Test the full OAuth2 Authorization Code + PKCE flow in the **Test Client Playground** (`/#login`).
+- Inspect live RS256-signed **ID tokens and Access tokens** with real-time claims decoding.
+- Manage mock users and custom claims in the **Mock User Directory** (`/#users`).
+
+---
+
+## 💡 Why Does `local-sso` Exist?
+
+### The Pain Point
+Integrating enterprise Single Sign-On (SSO) with **Microsoft Entra ID** (formerly Azure Active Directory) is standard in modern software. However, local development and testing are notoriously painful:
+
+- **Cloud Dependency & Bureaucracy:** Setting up an Azure Tenant requires cloud accounts, creating App Registrations in the Azure Portal, configuring redirect URIs, generating secrets, and assigning licenses.
+- **Permission & Consent Blockers:** Enterprise tenant policies often block developers from registering apps, requiring corporate IT tickets, admin consents, or domain verifications.
+- **Offline & Local Friction:** Developers cannot work offline or on restricted networks without active internet access to `login.microsoftonline.com`.
+- **Brittle CI/CD & Test Environments:** Automated tests that hit real Microsoft identity servers suffer from rate-limiting, expired secrets, MFA requirements, and flakiness.
+
+### The Solution
+`local-sso` eliminates this friction by running a **zero-dependency, local OAuth2 / OpenID Connect server** on `http://localhost:8080`:
+
+- **Zero Cloud Setup:** No Azure account, no tenant configuration, and no cloud permissions needed.
+- **Accepts Any App:** Any `client_id` and `redirect_uri` pair works immediately—no registration required!
+- **Entra ID v2.0 Compatible:** Implements standard OpenID Connect discovery (`.well-known/openid-configuration`), JWKS endpoints (`/keys`), authorize prompt, and token exchange. Emits genuine Microsoft Entra v2.0 token claims schemas (`oid`, `tid`, `sub`, `roles`, `preferred_username`, etc.).
+- **OIDC Extensions (e.g. UserInfo):** Provides standard OIDC endpoints like `/oidc/userinfo` that real Microsoft Entra omits, making `local-sso` drop-in compatible with generic OIDC libraries like NextAuth, Better Auth, and Spring Security.
+- **Self-Contained & Instant:** Written in pure Go standard library with an embedded TypeScript + Tailwind CSS UI. Starts in milliseconds.
+- **Built-in Playground:** Inspect tokens, verify RS256 cryptographic signatures, and switch mock user identities right inside your browser.
+
+---
+
+## 📂 Documentation Directory (`docs/`)
+
+Comprehensive technical documentation, implementation guides, and architectural specifications are located in the [`docs/`](docs/) folder:
+
+| Document | Purpose |
+|---|---|
+| 🛠️ **[`docs/development.md`](docs/development.md)** | **Complete Development & API Guide** — Local environment setup, hot-reload dev runner (`./run.sh`), dual-port proxying, codebase walkthrough, cross-compilation matrix, and full API specifications distinguishing standard Entra from mock extensions. |
+| 🏛️ **[`docs/architecture.md`](docs/architecture.md)** | **Architecture & RFC Specs** — Deep dive into system internals, token claims shape, cryptographic signing, and RFC mappings. |
+| 🚀 **[`docs/workspace-implementation.md`](docs/workspace-implementation.md)** | **Integration Guide** — Step-by-step walkthrough for integrating `local-sso` into a Next.js + Better Auth web application. |
+| 📋 **[`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md)** | **Implementation Reference** — Historical implementation plan, test coverage details, and endpoint contracts. |
+| 🔌 **[`docs/implementation-guide-for-mock-backend.md`](docs/implementation-guide-for-mock-backend.md)** | **Mock Backend Guide** — Patterns for mocking upstream OAuth2/OIDC servers. |
+
+---
+
+## 🏗️ How It Works
+
+### High-Level Architecture
+
+`local-sso` compiles into a single static binary containing both the Go HTTP Identity Provider server and the embedded Vite Single Page Application:
+
+```mermaid
+graph TD
+    subgraph Client Apps ["Client Applications (Local Development)"]
+        SPA["Frontend SPA / Mobile App<br/>(React, Next.js, Vue, MSAL.js)"]
+        Backend["Backend Service / API<br/>(Node, Python, Go, Java)"]
+    end
+
+    subgraph SSOLocal ["local-sso (Single Go Binary :8080)"]
+        subgraph EmbeddedUI ["Embedded Web UI (TypeScript + Tailwind CSS)"]
+            Dashboard["Web Dashboard<br/>/#projects"]
+            UserDirectory["Mock User Directory<br/>/#users"]
+            Playground["SSO Test Playground<br/>/#login"]
+        end
+
+        subgraph MockIdP ["Go Mock Entra ID (OIDC Engine)"]
+            Discovery["OIDC Discovery<br/>/{tenant}/v2.0/.well-known/openid-configuration"]
+            Authorize["Authorize Endpoint & Login Prompt<br/>/{tenant}/oauth2/v2.0/authorize"]
+            TokenExchange["Token Exchange & PKCE<br/>/{tenant}/oauth2/v2.0/token"]
+            JWKS["JWKS Public Keys (RS256)<br/>/{tenant}/discovery/v2.0/keys"]
+            UserInfo["OIDC UserInfo Endpoint<br/>/{tenant}/oidc/userinfo"]
+            SigningEngine["Crypto Engine<br/>RSA-2048 Keypair & JWT Signer"]
+            CodeStore["In-Memory Auth Codes<br/>(5 min TTL, Single-Use)"]
+            UserStore["In-Memory Users & Roles"]
+        end
+    end
+
+    SPA -->|"1. Redirect /authorize"| Authorize
+    Authorize -->|"2. Interactive Sign-in UI"| UserStore
+    Authorize -->|"3. Redirect with ?code=" | SPA
+    SPA -->|"4. Exchange code + PKCE" | TokenExchange
+    Backend -->|"4b. Server-side token exchange" | TokenExchange
+    TokenExchange -->|"5. Validate code & PKCE" | CodeStore
+    TokenExchange -->|"6. Sign ID & Access Tokens" | SigningEngine
+    Backend -->|"7. Fetch public keys to verify" | JWKS
+    Backend -->|"8. Fetch user profile (OIDC standard)" | UserInfo
+    EmbeddedUI <-->|"Manage profiles & users"| MockIdP
 ```
 
-#### Windows PowerShell:
-```powershell
+---
+
+### End-to-End OAuth2 + PKCE Flow
+
+Here is how an application logs in a user through `local-sso`:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Developer as Developer / User
+    participant App as External Frontend (e.g. Next.js / MSAL)
+    participant SSO as local-sso (Mock Entra IdP)
+    participant Backend as App Backend / Resource Server
+
+    Developer->>App: Click "Log In with Microsoft"
+    App->>App: Generate PKCE verifier + S256 challenge
+    App->>SSO: GET /{tenant}/oauth2/v2.0/authorize<br/>(?client_id=...&redirect_uri=...&code_challenge=...&scope=openid profile)
+    SSO-->>Developer: Render Mock Microsoft Sign-In Screen (Account Picker)
+    Developer->>SSO: Select Mock User (e.g. "Sazzad Sazib - Admin")
+    SSO->>SSO: Generate single-use authorization code
+    SSO-->>App: Redirect to redirect_uri?code=AUTH_CODE&state=...
+    App->>SSO: POST /{tenant}/oauth2/v2.0/token<br/>(code=AUTH_CODE, code_verifier=PKCE_VERIFIER, client_id=...)
+    SSO->>SSO: Verify PKCE S256 & issue RS256-signed JWTs
+    SSO-->>App: Return tokens (access_token, id_token, refresh_token)
+    App->>Backend: Request data with Authorization: Bearer <access_token>
+    Backend->>SSO: GET /{tenant}/discovery/v2.0/keys (JWKS)
+    Backend->>Backend: Verify RS256 signature & claims (sub, oid, tid, roles)
+    opt Fetch standard UserInfo
+        Backend->>SSO: GET /{tenant}/oidc/userinfo (Bearer <access_token>)
+        SSO-->>Backend: Return claims (sub, email, name, roles, groups)
+    end
+    Backend-->>App: Authorized Response
+```
+
+---
+
+## ⚡ Quick Start
+
+### Option A — Run Prebuilt Binaries
+
+Precompiled standalone binaries for every major OS and architecture are available in the [`bin/`](bin/) directory:
+
+| OS | CPU | Binary Path | Run Command |
+|---|---|---|---|
+| **macOS** | Apple Silicon (M1/M2/M3/M4) | `bin/local-sso-darwin-arm64` | `./bin/local-sso-darwin-arm64 -port 8080` |
+| **macOS** | Intel | `bin/local-sso-darwin-amd64` | `./bin/local-sso-darwin-amd64 -port 8080` |
+| **Linux** | x86_64 | `bin/local-sso-linux-amd64` | `./bin/local-sso-linux-amd64 -port 8080` |
+| **Linux** | ARM 64-bit (Graviton, Pi 4/5) | `bin/local-sso-linux-arm64` | `./bin/local-sso-linux-arm64 -port 8080` |
+| **Windows** | x64 | `bin\local-sso-windows-amd64.exe` | `.\bin\local-sso-windows-amd64.exe -port 8080` |
+| **Windows** | ARM64 | `bin\local-sso-windows-arm64.exe` | `.\bin\local-sso-windows-arm64.exe -port 8080` |
+
+> **macOS Note:** If Gatekeeper blocks the binary, run `xattr -d com.apple.quarantine bin/local-sso-darwin-*`.  
+> **Linux Note:** Ensure execute permissions with `chmod +x bin/local-sso-*`.
+
+---
+
+### Option B — Build From Source
+
+The web UI is compiled and embedded directly into the Go binary (`//go:embed all:web/dist`).
+
+#### One-Command Build:
+```bash
+# Linux / macOS / WSL
+./build.sh
+
+# Windows (PowerShell)
 .\build.ps1
 ```
 
-### Option B — Manual step-by-step
-
+#### Manual Step-by-Step Build:
 ```bash
-# Step 1: Build the frontend (TypeScript + Tailwind CSS) -> web/dist
+# Step 1: Build frontend (TypeScript + Tailwind CSS) -> web/dist
 cd web && npm install && npm run build && cd ..
 
-# Step 2: Build the standalone Go binary
-go build -o sso-local .
-```
-
-Cross-compile a native Windows `.exe` from WSL/macOS/Linux:
-```bash
-GOOS=windows GOARCH=amd64 go build -o sso-local.exe .
+# Step 2: Build standalone Go binary
+go build -o local-sso .
 ```
 
 ---
 
-## 2. Run Locally (Serve)
-
-### Option A — Run the built binary
-```bash
-./sso-local -port 8080            # Linux / macOS
-wsl ./sso-local -port 8080        # Windows (from WSL)
-.\sso-local.exe -port 8080        # Windows native .exe
-```
-
-#### Which prebuilt binary in `bin/` should I run?
-
-`./build.sh` (default / `all`) writes cross-compiled binaries to `bin/`. Pick the one matching your OS and CPU:
-
-| OS | CPU | Binary | How to check CPU |
-|----|-----|--------|------------------|
-| macOS | Apple Silicon (M1/M2/M3/M4) | `bin/sso-local-darwin-arm64` | `uname -m` → `arm64` |
-| macOS | Intel | `bin/sso-local-darwin-amd64` | `uname -m` → `x86_64` |
-| Linux | x86_64 (most PCs/servers) | `bin/sso-local-linux-amd64` | `uname -m` → `x86_64` |
-| Linux | ARM 64-bit (Graviton, Raspberry Pi 4/5 64-bit) | `bin/sso-local-linux-arm64` | `uname -m` → `aarch64` |
-| Linux | 32-bit x86 | `bin/sso-local-linux-386` | `uname -m` → `i686` |
-| Linux | 32-bit ARM | `bin/sso-local-linux-arm` | `uname -m` → `armv7l` |
-| Linux | RISC-V 64 | `bin/sso-local-linux-riscv64` | `uname -m` → `riscv64` |
-| FreeBSD | x86_64 | `bin/sso-local-freebsd-amd64` | `uname -m` → `amd64` |
-| Windows | x64 (most PCs) | `bin\sso-local-windows-amd64.exe` | PowerShell: `$env:PROCESSOR_ARCHITECTURE` → `AMD64` |
-| Windows | ARM (Surface Pro X, Snapdragon) | `bin\sso-local-windows-arm64.exe` | PowerShell: `$env:PROCESSOR_ARCHITECTURE` → `ARM64` |
+### Option C — `go install` (Serve From Anywhere)
 
 ```bash
-./bin/sso-local-darwin-arm64 -port 8080          # macOS (Apple Silicon)
-./bin/sso-local-linux-amd64 -port 8080           # Linux x86_64
-.\bin\sso-local-windows-amd64.exe -port 8080     # Windows x64 (PowerShell)
-```
-
-> macOS: if Gatekeeper blocks the binary, run `xattr -d com.apple.quarantine bin/sso-local-darwin-*` first.
-> Linux/macOS: if you get "permission denied", run `chmod +x bin/sso-local-*`.
-
-### Option B — `go install`, then serve from anywhere
-```bash
-# one-time: install the binary into $(go env GOPATH)/bin (run in the repo root,
-# frontend must already be built so web/dist is embedded)
+# Frontend must already be built so web/dist is embedded
 go install .
 
-# serve (works from any directory, binary is on your PATH)
-sso-local -port 8080
+# Run from anywhere on your PATH
+local-sso -port 8080
 ```
 
-### Option C — Run from source (dev loop)
-```bash
-go run . -port 8080
-```
+---
 
-### Option D — Development mode (UI + API on ONE port, hot reload)
+### Option D — Development Mode (Hot Reload with `./run.sh`)
+
+One public port (`http://localhost:8080`) serves **everything**:
+
 ```bash
 ./run.sh                  # everything on http://localhost:8080
-PORT=3000 ./run.sh        # pick a different single port
-GO_PORT=9091 ./run.sh     # pin the internal (auto-picked 8081-8100 otherwise)
+PORT=3000 ./run.sh        # pick a custom public port
+GO_PORT=9091 ./run.sh     # pin the internal Go backend port
 ```
 
-One public port serves **everything** — open **`http://localhost:8080/#config`**:
-
-| On port `PORT` (default 8080) | Routed to |
+| Route on Public Port (`8080`) | Target Process |
 |---|---|
 | `/` (UI, HMR) | Vite dev server |
-| `/api/*`, `/callback` | proxied to the internal Go IdP |
-| `/{tenant}/oauth2/*`, `/{tenant}/v2.0/*`, `/{tenant}/discovery/*` | proxied to the internal Go IdP |
+| `/api/*`, `/callback` | Proxied to the internal Go IdP |
+| `/{tenant}/oauth2/*`, `/{tenant}/v2.0/*`, `/{tenant}/discovery/*`, `/oidc/userinfo` | Proxied to the internal Go IdP |
 
-* The Go IdP listens on an internal port (`localhost:8081+`, auto-picked, `GO_PORT` to pin) — the browser never talks to it directly, so `window.location.origin` based redirect URLs stay on the single public port.
-* Discovery documents advertise the public `host:port` they were requested on (Go reads the `Host` header through the proxy), so `authorization_endpoint` / `token_endpoint` / `jwks_uri` all point at `http://localhost:8080/...`.
-* Edit anything under `web/src/**` and the page hot-reloads — no `npm run build`, no `go build`.
-* The Go server is compiled to `.dev/sso-local-dev` (git-ignored) before starting, so a compile error stops the run immediately instead of serving a stale binary.
-* `Ctrl+C` stops **both** processes.
+- Edit anything under `web/src/**` and the page hot-reloads instantly.
+- The Go server is compiled to `.dev/local-sso-dev` before starting.
+- `Ctrl+C` stops both processes cleanly.
 
-> Rebuild the embedded UI (`./build.sh`) only for the production binary — in dev mode the UI comes from Vite and `web/dist` is not served.
-
-### Environment configuration (`.env`)
-
+#### Environment Configuration (`.env`):
 ```bash
-cp .env.example .env   # then edit the values
+cp .env.example .env
 ```
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8080` | Public port serving UI + API + OIDC (what you open) |
 | `GO_PORT` | auto (`8081`-`8100`) | Internal loopback port for the Go IdP, proxied by Vite |
-| `SSO_BACKEND` | `http://localhost:$GO_PORT` | Vite proxy target (only override for an external Go server) |
-| `TENANT` | `common` | Default tenant alias or GUID passed to `sso-local -tenant` |
-
-`./run.sh` loads `.env` automatically; variables already exported in your shell win over the file.
-
-On startup the server binds to `localhost` only and prints:
-
-```
-================================================================
-  sso-local — Local Mock Microsoft Entra ID (OIDC) & SSO Playground
-================================================================
-  -> Web Dashboard:    http://localhost:8080/#config
-  -> Mock Users:       http://localhost:8080/#users
-  -> Test Client:      http://localhost:8080/#login
-  -> OIDC Discovery:   http://localhost:8080/common/v2.0/.well-known/openid-configuration
-  -> Authorize URL:    http://localhost:8080/common/oauth2/v2.0/authorize
-  -> Token URL:        http://localhost:8080/common/oauth2/v2.0/token
-  -> JWKS Keys URL:    http://localhost:8080/common/discovery/v2.0/keys
-================================================================
-```
-
-### Available CLI flags
-
-| Flag | Default | Description | Example |
-|---|---|---|---|
-| `-port`, `-p` | `8080` | Port to listen on (`localhost:<port>`) | `sso-local -p 3000` |
-| `-tenant`, `-t` | `common` | Default tenant alias or GUID | `sso-local -t my-tenant-id` |
-| `-base-url`, `-b` | `""` | Override base URL for OIDC metadata (e.g. ngrok/tunnels) | `sso-local -b https://xxxx.ngrok-free.app` |
-| `-issuer-mode` | `host` | Issuer format: `host` (default) or `entra` | `sso-local -issuer-mode entra` |
-| `-no-browser` | `false` | Do not auto-open the browser | `sso-local -no-browser` |
-
-### Stop the server
-`Ctrl+C` (graceful shutdown with a 5s timeout).
+| `SSO_BACKEND` | `http://localhost:$GO_PORT` | Vite proxy target |
+| `TENANT` | `common` | Default tenant alias or GUID passed to `local-sso -tenant` |
 
 ---
 
-## 3. Use It In Your Frontend
+## ⚙️ CLI Flags & Configuration
 
-### Step 1 — Start `sso-local`
 ```bash
-./sso-local -port 8080
+./local-sso [flags]
 ```
 
-### Step 2 — Update the redirect URL (client config)
+| Flag | Shorthand | Default | Description | Example |
+|---|---|---|---|---|
+| `-port` | `-p` | `8080` | Port to listen on (also reads `PORT` env var) | `local-sso -p 3000` |
+| `-host` | `-h` | `127.0.0.1` | Network interface to bind (`0.0.0.0` for containers) | `local-sso -h 0.0.0.0` |
+| `-tenant` | `-t` | `common` | Default tenant alias or GUID | `local-sso -t my-tenant-id` |
+| `-base-url` | `-b` | `""` | Override base URL in OIDC metadata (e.g. ngrok or Render) | `local-sso -b https://xxxx.ngrok-free.app` |
+| `-issuer-mode` | | `host` | Format of `iss` claim: `host` (origin) or `entra` | `local-sso -issuer-mode entra` |
+| `-no-browser` | | `false` | Suppress auto-opening default web browser on launch | `local-sso -no-browser` |
 
-Open the dashboard at [`http://localhost:8080/#config`](http://localhost:8080/#config) and edit the active **Profile Settings**:
+---
+
+## 💻 Integrating With Your Applications
+
+### Step 1 — Start `local-sso`
+```bash
+./local-sso -port 8080
+```
+
+### Step 2 — Configure Your Client Settings
+Open the dashboard at [`http://localhost:8080/#projects`](http://localhost:8080/#projects) and configure your project:
 
 | Field | Meaning | Example |
 |---|---|---|
-| `Client ID` | Any value works (mock IdP, no app registration) | `00000000-0000-0000-0000-000000000001` |
-| `Redirect URI` | **Your frontend's callback route** — this is where the auth code is sent | `http://localhost:3000/callback` |
-| `Tenant` | Alias or GUID used in every URL | `common` or `72f988bf-86f1-41af-91ab-2d7cd011db47` |
-| `Host Origin / Base URL` | Custom host origin for ngrok tunnels or remote testing | `https://xxxx.ngrok-free.app` or `http://localhost:8080` |
-| `OIDC Issuer Format` | Format for `iss` claim and discovery (`host` origin or `entra`) | `Host Origin ({host}/{tenant}/v2.0)` |
+| `Client ID` | Any value works (mock IdP, no registration needed) | `00000000-0000-0000-0000-000000000001` |
+| `Redirect URI` | **Your frontend callback route** | `http://localhost:3000/callback` |
+| `Tenant` | Alias or GUID used in every URL | `common` |
+| `Host Origin / Base URL` | Custom host origin for ngrok tunnels or remote testing | `http://localhost:8080` |
 | `Scope` | Space-separated scopes | `openid profile email offline_access` |
 
-> **Important:** The **same** `redirect_uri` and `client_id` must be used in the authorize request **and** in the token exchange, otherwise the code exchange fails with `invalid_grant`.
-> **Ngrok Tunnel Support:** When running `ngrok http 8080`, simply set `Host Origin / Base URL` to your ngrok URL (`https://...ngrok-free.app`). All endpoints, cURL commands, and MSAL snippets will immediately update to your ngrok origin. The Go backend automatically parses `X-Forwarded-Proto` and `X-Forwarded-Host` headers as well.
+> **Ngrok Tunnel Support:** When running `ngrok http 8080`, simply set `Host Origin / Base URL` to your ngrok URL (`https://...ngrok-free.app`). All endpoints and snippets immediately update. The Go backend also auto-detects `X-Forwarded-Proto` and `X-Forwarded-Host`.
 
-Copy the pre-assembled **Authorize URL** from the `#config` banner:
+---
 
-```text
-http://localhost:8080/common/oauth2/v2.0/authorize?client_id=00000000-0000-0000-0000-000000000001&response_type=code&redirect_uri=http://localhost:3000/callback&response_mode=query&scope=openid+profile+email+offline_access&state=12345&nonce=67890&code_challenge=...&code_challenge_method=S256
+### Step 3 — Code Examples
+
+#### A. MSAL.js / `@azure/msal-browser`
+
+```typescript
+import { PublicClientApplication, Configuration } from "@azure/msal-browser";
+
+export const msalConfig: Configuration = {
+  auth: {
+    clientId: "00000000-0000-0000-0000-000000000001", // Any client ID works!
+    authority: "http://localhost:8080/common",
+    knownAuthorities: ["localhost:8080"],              // Required for non-microsoft host
+    redirectUri: "http://localhost:3000/callback",
+  },
+  cache: {
+    cacheLocation: "localStorage",
+    storeAuthStateInCookie: false,
+  },
+};
+
+export const msalInstance = new PublicClientApplication(msalConfig);
 ```
 
-### Step 3 — Authorize the app (sign the user in)
+---
 
-1. Redirect the user's browser to the authorize URL above (login button in your app).
-2. `sso-local` shows the **interactive mock sign-in prompt** — pick a mock user (e.g. `Alex Wilber`).
-3. The browser is redirected back to your `redirect_uri` with `?code=...&state=...`.
+#### B. Standard OAuth2 + PKCE (Next.js / React / Vue / Vanilla)
 
-> There is nothing to register in Azure: any `client_id` / `redirect_uri` is accepted by the mock IdP. Just keep them identical between Step 2 and Step 4.
+```typescript
+// 1. Generate PKCE Challenge
+const verifier = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+const challenge = btoa(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)))
+  .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-### Step 4 — Exchange the code (point your app at the mock token API)
+// 2. Redirect user to authorize URL
+const authUrl = `http://localhost:8080/common/oauth2/v2.0/authorize?` +
+  `client_id=00000000-0000-0000-0000-000000000001` +
+  `&response_type=code` +
+  `&redirect_uri=${encodeURIComponent("http://localhost:3000/callback")}` +
+  `&response_mode=query` +
+  `&scope=openid+profile+email+offline_access` +
+  `&state=12345` +
+  `&code_challenge=${challenge}` +
+  `&code_challenge_method=S256`;
 
-**A. Direct token endpoint** (server-side exchange, confidential or PKCE public client):
+window.location.href = authUrl;
+
+// 3. In callback handler, exchange code for tokens
+const res = await fetch("http://localhost:8080/common/oauth2/v2.0/token", {
+  method: "POST",
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  body: new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: "00000000-0000-0000-0000-000000000001",
+    redirect_uri: "http://localhost:3000/callback",
+    code: new URLSearchParams(window.location.search).get("code")!,
+    code_verifier: verifier,
+  }),
+});
+const { access_token, id_token, refresh_token } = await res.json();
+```
+
+---
+
+#### C. Direct cURL Token Exchange
 
 ```bash
 curl -X POST http://localhost:8080/common/oauth2/v2.0/token \
@@ -211,149 +346,104 @@ curl -X POST http://localhost:8080/common/oauth2/v2.0/token \
   -d "code_verifier=<PKCE_VERIFIER>"
 ```
 
-**B. Via the mock API proxy** (browser-side, CORS-friendly — use this from SPA/mocks):
-
-```ts
-const res = await fetch("http://localhost:8080/api/token", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    token_url: "http://localhost:8080/common/oauth2/v2.0/token",
-    client_id: "00000000-0000-0000-0000-000000000001",
-    code: codeFromCallback,
-    code_verifier: pkceVerifier,
-    redirect_uri: "http://localhost:3000/callback",
-  }),
-});
-const session = await res.json(); // access_token, id_token, refresh_token, ...
-```
-
-`/api/token` also accepts `client_secret`, `refresh_token` (for `grant_type=refresh_token`), `scope`, `extra` and `client_id_in_query`.
-
-### Step 5 — Verify tokens (optional)
-
-```ts
-await fetch("http://localhost:8080/api/verify", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    id_token: session.id_token,
-    jwks_uri: "http://localhost:8080/common/discovery/v2.0/keys",
-    issuer: "https://login.microsoftonline.com/common/v2.0", // as reported by discovery
-    audience: "00000000-0000-0000-0000-000000000001",
-  }),
-}); // -> { verified: true, claims: { ... } }
-```
-
-The `issuer` is always Entra-shaped (`https://login.microsoftonline.com/{tenant}/v2.0`) — read it from `GET /{tenant}/v2.0/.well-known/openid-configuration`.
-
-### Full client snippets
-
-**Plain OAuth2 + PKCE (any framework):**
-```ts
-const verifier  = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
-const challenge = btoa(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)))
-  .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-// 1. redirect to /common/oauth2/v2.0/authorize with code_challenge + code_challenge_method=S256
-// 2. read ?code= from the callback
-// 3. POST the code + verifier to /api/token (see Step 4B)
-```
-
-**MSAL.js / `@azure/msal-browser`:**
-```typescript
-import { PublicClientApplication, Configuration } from "@azure/msal-browser";
-
-export const msalConfig: Configuration = {
-  auth: {
-    clientId: "00000000-0000-0000-0000-000000000001",
-    authority: "http://localhost:8080/common",
-    knownAuthorities: ["localhost:8080"],
-    redirectUri: "http://localhost:3000/callback",
-  },
-  cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false },
-};
-
-export const msalInstance = new PublicClientApplication(msalConfig);
-```
-
-> Keep `knownAuthorities` pointing at `localhost:8080` — MSAL otherwise rejects an unknown authority.
-
 ---
 
-## 4. Mock API Reference (JSON helpers)
+## 📡 API Specifications: Standard Entra vs. local-sso Mock Extensions
 
-CORS is fully open (`Access-Control-Allow-Origin: *`) so these work straight from your frontend.
+`local-sso` provides both strict **Microsoft Entra ID v2.0 endpoints** and **mock extensions** designed to make local testing easier.
 
-| Endpoint | Method | Purpose | Body / Query |
+### 1. Standard Microsoft Entra ID (v2.0) Endpoints
+
+These endpoints strictly match the request and response shapes of Microsoft Entra ID v2.0:
+
+| Endpoint | Method | Entra Standard | Description |
 |---|---|---|---|
-| `/api/token` | `POST` | Token exchange proxy (code for tokens, or refresh) | `token_url`, `client_id`, `code`, `code_verifier`, `redirect_uri` (+ optional `client_secret`, `refresh_token`, `scope`, `extra`, `client_id_in_query`) |
-| `/api/verify` | `POST` | RS256 signature + claims validation of an ID token | `id_token`, `jwks_uri`, `issuer`, `audience` |
-| `/api/discovery` | `GET` | Fetch/normalize any OIDC discovery document | `?issuer=` or `?url=` |
-| `/api/users` | `GET` | List mock users | — |
-| `/api/users` | `POST` | Create a mock user | `{ name, email, roles, ... }` |
-| `/api/users/{id}` | `PUT` | Update a mock user | partial user JSON |
-| `/api/users/{id}` | `DELETE` | Delete a mock user | — |
-| `/api/idp/login` | `POST` | Submit the mock sign-in form (used by the authorize prompt) | form fields |
-| `/api/version` | `GET` | Running version info | — |
+| `/{tenant}/v2.0/.well-known/openid-configuration` | `GET` | ✅ Entra Standard | OpenID Connect Discovery document |
+| `/{tenant}/discovery/v2.0/keys` | `GET` | ✅ Entra Standard | JWKS endpoint exposing active RSA-2048 public keys |
+| `/{tenant}/oauth2/v2.0/authorize` | `GET` | ✅ Entra Standard | Interactive Mock Sign-in / Authorization Code prompt |
+| `/{tenant}/oauth2/v2.0/token` | `POST` | ✅ Entra Standard | Authorization Code + PKCE and Refresh Token exchange |
+| `/{tenant}/oauth2/v2.0/logout` | `GET` | ✅ Entra Standard | Logout endpoint handling post-logout redirects |
 
 ---
 
-## 5. OIDC Endpoints Reference
+### 2. local-sso Mock Extensions & Non-Standard APIs
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/{tenant}/v2.0/.well-known/openid-configuration` | `GET` | OpenID Connect Discovery Metadata |
-| `/{tenant}/discovery/v2.0/keys` | `GET` | JWKS endpoint serving the RS256 public key |
-| `/{tenant}/oauth2/v2.0/authorize` | `GET` | Interactive Mock Sign-in / Authorization Code prompt |
-| `/{tenant}/oauth2/v2.0/token` | `POST` | Exchanges `authorization_code` (PKCE S256) or `refresh_token` |
-| `/{tenant}/oauth2/v2.0/logout` | `GET` | Session sign-out and post-logout redirect |
-| `/#config` | `GET` | Web Dashboard with copyable URLs & integration snippets |
-| `/#users` | `GET` | Mock User Directory management UI |
-| `/#login` | `GET` | In-browser Test Client & Token Inspector |
+These endpoints and behaviors are **custom extensions added to local-sso** to bridge common friction points in local testing and generic OIDC library integrations:
+
+| Endpoint / Feature | Method | Entra Standard | Purpose & Why It Exists |
+|---|---|---|---|
+| **`/{tenant}/oidc/userinfo`**<br/>(also `/oidc/userinfo`) | `GET`<br/>`POST` | ❌ **Non-Standard Entra**<br/>*(Standard OIDC RFC 5356)* | **OIDC UserInfo Endpoint.** Real Entra ID v2.0 does not expose a standard `/userinfo` endpoint (it forces the use of Microsoft Graph API). Generic libraries like Better Auth, NextAuth, and Spring Security require this endpoint. Returns `sub`, `email`, `name`, `email_verified: true`, `tid`, `oid`, `roles`, `groups`, and custom claims. |
+| **`/api/token`** | `POST` | ❌ **Non-Standard Entra**<br/>*(local-sso Helper)* | **Browser CORS Token Exchange Proxy.** Accepts JSON payloads (`token_url`, `code`, `code_verifier`, etc.) and returns tokens with full `Access-Control-Allow-Origin: *` to prevent browser CORS blocks during SPA development. |
+| **`/api/verify`** | `POST` | ❌ **Non-Standard Entra**<br/>*(local-sso Helper)* | **Token Signature & Claims Validator.** Validates RS256 JWT signatures against the local JWKS directly in JSON without requiring server-side crypto tools. |
+| **`/api/discovery`** | `GET` | ❌ **Non-Standard Entra**<br/>*(local-sso Helper)* | **Discovery Normalizer.** Proxies and normalizes discovery metadata documents to inspect remote or local endpoints. |
+| **`/api/users`**<br/>`POST /api/users`<br/>`PUT /api/users/{id}`<br/>`DELETE /api/users/{id}` | `GET`<br/>`POST`<br/>`PUT`<br/>`DELETE` | ❌ **Non-Standard Entra**<br/>*(local-sso Helper)* | **Programmatic User Directory CRUD.** Allows automated test suites and developers to programmatically seed, list, update, and delete mock user personas, roles, and token claims without needing Microsoft Graph admin permissions. |
+| **`prompt=none` + `login_hint`** | Query Param | ❌ **Non-Standard Entra**<br/>*(local-sso Extension)* | **Headless Auto-Login.** In real Entra ID, `prompt=none` requires an active session cookie. In `local-sso`, passing `prompt=none&login_hint=<email>` immediately generates an authorization code without rendering the account picker, enabling lightning-fast CI/CD tests. |
+| **Zero App Registration & Secret Bypass** | Runtime | ❌ **Non-Standard Entra**<br/>*(local-sso Extension)* | Any `client_id` is accepted, and `client_secret` is completely ignored at the token endpoint. |
 
 ---
 
-## 6. Testing Inside This App Itself
+### Web UI Routes
 
-`sso-local` includes a built-in interactive test suite so you can verify OAuth2 / OIDC authentication flows and token generation without writing any frontend code first:
+| Route | View |
+|---|---|
+| `http://localhost:8080/#projects` | Projects / Profiles configuration and copyable authorize URLs |
+| `http://localhost:8080/#users` | Mock User Directory management UI |
+| `http://localhost:8080/#login` | Interactive in-browser Test Client Playground & Token Inspector |
+| `http://localhost:8080/#config` | Alias pointing to `#projects` |
 
-1. **Open the Test Client**: navigate to [`http://localhost:8080/#login`](http://localhost:8080/#login).
+---
+
+## 🧪 Testing Inside This App Itself
+
+`local-sso` includes an in-browser test suite so you can verify OAuth2 / OIDC flows without writing any client code:
+
+1. **Open the Test Client**: Navigate to [`http://localhost:8080/#login`](http://localhost:8080/#login).
 2. **Configure Test Parameters**:
-   * Select which Mock User to sign in as (e.g. `Alex Wilber`, `Megan Bowen`, or the interactive account picker).
-   * Customize requested OAuth scopes (e.g. `openid profile email offline_access User.Read`).
-   * Choose prompt behavior (`select_account`, `none`, or `consent`).
-3. **Execute Flow**: click **"Launch OAuth2 + PKCE Test Flow"**.
-   * It performs the full RFC 7636 Authorization Code + PKCE (S256) flow against the local server.
-   * Redirects to the local interactive sign-in prompt and exchanges the code at `/oauth2/v2.0/token`.
+   - Select which mock user to sign in as (e.g. `Sazzad Sazib`, `Iftekhar Rifat`).
+   - Customize requested OAuth scopes (e.g. `openid profile email offline_access`).
+   - Choose prompt behavior (`select_account`, `none`, or `consent`).
+3. **Execute Flow**: Click **"Launch OAuth2 + PKCE Test Flow"**.
 4. **Live Token & Claims Inspector**:
-   * **Visual User Profile**: inspects `name`, `email`, `tid`, `oid`, and `roles`.
-   * **JOSE Header & Decoded Claims**: formatted JSON trees for ID token and Access token.
-   * **Verify JWKS Signature**: one-click RS256 cryptographic verification against the local JWKS endpoint.
-   * **Test Token Refresh**: one-click token refresh using `grant_type=refresh_token`.
-   * **cURL Generator**: copyable command with `Authorization: Bearer <token>` for testing your backend APIs.
+   - **Visual Profile**: Inspects `name`, `email`, `tid`, `oid`, and `roles`.
+   - **JOSE Header & Decoded Claims**: Formatted JSON trees for ID token and Access token.
+   - **Verify JWKS Signature**: One-click RS256 cryptographic verification against the local JWKS endpoint.
+   - **Token Refresh**: One-click refresh test using `grant_type=refresh_token`.
+   - **cURL Generator**: Copyable command with `Authorization: Bearer <token>` for testing your backend APIs.
 
 ---
 
-## 7. Mock User Directory
+## 👥 Mock User Directory
 
-`sso-local` comes pre-configured with default seed users:
+`local-sso` comes pre-seeded with realistic developer accounts:
 
-* **Sazzad Sazib** (`sazib@gmail.com`) — Global Administrator
-* **Iftekhar Rifat** (`rifat@gmail.com`) — Application Developer / Senior Software Engineer
+- **Sazzad Sazib** (`sazib@gmail.com`) — Global Administrator (`roles: ["Admin", "User"]`)
+- **Iftekhar Rifat** (`rifat@gmail.com`) — Senior Software Engineer (`roles: ["Developer", "User"]`)
 
-Create, edit, or delete custom users and custom token claims anytime via `http://localhost:8080/#users` (backed by the `/api/users` endpoints).
+You can create, update, or remove mock personas anytime via the in-app user directory (`/#users`) or the `/api/users` REST API.
 
 ---
 
-## 8. Unit Testing
+## 🧪 Unit Testing
 
+Run backend unit tests:
 ```bash
 go test -v ./...
 ```
 
+Verify frontend TypeScript compilation:
+```bash
+cd web && npm run build
+```
+
 ---
 
-## Security Notice
+## 🔒 Security Notice
 
-`sso-local` binds exclusively to `localhost` (loopback) and is strictly intended for local software development and testing. Do not expose this service to public networks.
+`local-sso` is strictly intended for **local software development and automated testing**. It does not enforce client secret authentication and issues self-signed RSA certificates. Do not use this tool as an identity provider in production environments.
+
+---
+
+## 📄 License & Credits
+
+Created and maintained by **[Sazzad Sazib](https://github.com/sazzadsazib)** ([@sazzadsazib](https://github.com/sazzadsazib)).  
+Licensed under the [MIT License](LICENSE).

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sso-local
+    name: local-sso
     runtime: docker
     plan: free
     region: oregon

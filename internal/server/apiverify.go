@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"sso-local/internal/oauth"
+	"local-sso/internal/oauth"
 )
 
 type verifyRequest struct {

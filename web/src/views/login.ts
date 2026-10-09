@@ -395,7 +395,7 @@ export async function renderLoginView(container: HTMLElement) {
 
       if (res.verified) {
         alertEl.className = 'p-4 rounded-xl border bg-emerald-950/60 border-emerald-500/40 text-emerald-200 text-xs font-mono block';
-        alertEl.innerHTML = `RS256 JWKS signature verified successfully! Key ID: sso-local-key-1, Issuer: ${res.claims?.iss || issuer}, Subject: ${res.claims?.sub}`;
+        alertEl.innerHTML = `RS256 JWKS signature verified successfully! Key ID: local-sso-key-1, Issuer: ${res.claims?.iss || issuer}, Subject: ${res.claims?.sub}`;
         showToast('Token signature is valid!');
       } else {
         alertEl.className = 'p-4 rounded-xl border bg-rose-950/60 border-rose-500/40 text-rose-200 text-xs font-mono block';

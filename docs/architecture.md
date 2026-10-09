@@ -1,8 +1,8 @@
-# sso-local — Implementation Plan
+# local-sso — Implementation Plan
 
 A **single Go binary** developer tool that serves as a **Local Mock Microsoft Entra ID (OIDC) Identity Provider** and a **built-in SSO Test & Management Playground**. 
 
-Developers build and run the binary on `http://localhost:8080`. External frontend applications (e.g., React/Vue/Angular apps using MSAL.js or standard OAuth2/OIDC clients) can consume `sso-local` as their Entra ID provider to log in users, receive signed tokens, and establish SSO sessions locally. In parallel, developers can open the built-in Web UI to manage mock user identities, configure claims, inspect tokens, and test OAuth2 PKCE flows directly.
+Developers build and run the binary on `http://localhost:8080`. External frontend applications (e.g., React/Vue/Angular apps using MSAL.js or standard OAuth2/OIDC clients) can consume `local-sso` as their Entra ID provider to log in users, receive signed tokens, and establish SSO sessions locally. In parallel, developers can open the built-in Web UI to manage mock user identities, configure claims, inspect tokens, and test OAuth2 PKCE flows directly.
 
 ---
 
@@ -10,7 +10,7 @@ Developers build and run the binary on `http://localhost:8080`. External fronten
 
 | Dimension | Decision |
 |---|---|
-| Runtime | Single Go binary, `go build -o sso-local ./` → `./sso-local -port 8080` |
+| Runtime | Single Go binary, `go build -o local-sso ./` → `./local-sso -port 8080` |
 | Primary Role | **Local Mock Entra ID Server (IdP)**: Emulates Microsoft Entra v2.0 endpoints for local frontends & backends |
 | Secondary Role | **SSO Client & Management Playground**: Built-in UI to test flows, configure mock users, inspect tokens, and copy configs |
 | Frontend Stack | Embedded into the binary via `//go:embed web` — zero external runtime files |
@@ -30,8 +30,8 @@ Developers build and run the binary on `http://localhost:8080`. External fronten
 ## 2. Project Structure
 
 ```
-sso-local/
-├── go.mod                      # module sso-local, go 1.27, stdlib only
+local-sso/
+├── go.mod                      # module local-sso, go 1.27, stdlib only
 ├── main.go                     # CLI flags (-port, -tenant), //go:embed web, server bootstrap, localhost bind, auto-open browser
 ├── internal/
 │   ├── idp/
@@ -72,9 +72,9 @@ sso-local/
 
 ---
 
-## 3. How `sso-local` Works
+## 3. How `local-sso` Works
 
-### Workflow A: External Frontend Consuming `sso-local` as Entra IdP
+### Workflow A: External Frontend Consuming `local-sso` as Entra IdP
 
 Your frontend app (e.g. React running on `localhost:3000` using MSAL.js or `@azure/msal-browser`) configures `http://localhost:8080/common` (or a specific tenant GUID) as its authority.
 
@@ -83,7 +83,7 @@ sequenceDiagram
     autonumber
     actor Dev as Developer / User
     participant App as Your Frontend (localhost:3000)
-    participant SSO as sso-local (localhost:8080)
+    participant SSO as local-sso (localhost:8080)
 
     App->>SSO: GET /{tenant}/v2.0/.well-known/openid-configuration
     SSO-->>App: 200 OK (OIDC Metadata & local endpoints)
@@ -106,16 +106,16 @@ sequenceDiagram
 #### Step Breakdown:
 1. **Discovery & JWKS**:
    - The consumer app fetches `http://localhost:8080/{tenant}/v2.0/.well-known/openid-configuration`.
-   - `sso-local` responds with JSON endpoints pointing to `http://localhost:8080/{tenant}/...`.
+   - `local-sso` responds with JSON endpoints pointing to `http://localhost:8080/{tenant}/...`.
    - The app fetches `http://localhost:8080/{tenant}/discovery/v2.0/keys` to get the active RSA public key.
 2. **Authorize Request**:
    - The frontend generates PKCE `code_verifier` & `code_challenge` (S256) and redirects to `http://localhost:8080/{tenant}/oauth2/v2.0/authorize`.
-   - `sso-local` serves a clean **Mock Login Prompt** (`auth_prompt.html`) allowing the developer to pick which mock user account to sign in as (or customize claims on the fly).
-   - Once selected, `sso-local` issues an authorization code, stores the associated PKCE challenge, and redirects back to the frontend's `redirect_uri?code=...&state=...`.
+   - `local-sso` serves a clean **Mock Login Prompt** (`auth_prompt.html`) allowing the developer to pick which mock user account to sign in as (or customize claims on the fly).
+   - Once selected, `local-sso` issues an authorization code, stores the associated PKCE challenge, and redirects back to the frontend's `redirect_uri?code=...&state=...`.
 3. **Token Redemption**:
    - The frontend posts to `http://localhost:8080/{tenant}/oauth2/v2.0/token` with `grant_type=authorization_code`, `code`, and `code_verifier`.
-   - `sso-local` computes `BASE64URL(SHA256(code_verifier))` and verifies it against the stored challenge.
-   - `sso-local` signs an **RS256 JWT `id_token` and `access_token`** using its local RSA private key. The token includes standard Entra v2.0 claims:
+   - `local-sso` computes `BASE64URL(SHA256(code_verifier))` and verifies it against the stored challenge.
+   - `local-sso` signs an **RS256 JWT `id_token` and `access_token`** using its local RSA private key. The token includes standard Entra v2.0 claims:
      ```json
      {
        "aud": "<client_id>",
@@ -143,7 +143,7 @@ sequenceDiagram
 Developers can also test without an external app:
 1. Open `http://localhost:8080/#login`.
 2. Click **"Run Test Login"**.
-3. It performs the full browser redirect flow against `sso-local`'s own authorize/token endpoints, exchanges the code, and lands on `http://localhost:8080/#login` showing decoded claims, token inspector, signature validation badge, and live refresh/logout testing buttons.
+3. It performs the full browser redirect flow against `local-sso`'s own authorize/token endpoints, exchanges the code, and lands on `http://localhost:8080/#login` showing decoded claims, token inspector, signature validation badge, and live refresh/logout testing buttons.
 
 ---
 
@@ -200,7 +200,7 @@ All endpoints support **CORS** (`Access-Control-Allow-Origin: *`, `Access-Contro
   - **Launcher Link**: One-click deep link to start an automated test auth flow.
 
 ### 3. Built-in Test Client (`#login`)
-- Full in-browser client to execute and debug PKCE flows against `sso-local` without writing any frontend code first.
+- Full in-browser client to execute and debug PKCE flows against `local-sso` without writing any frontend code first.
 - Decoded JWT viewer showing header, payload claims, and signature verification status.
 - Token countdown timer and live refresh button.
 
@@ -211,7 +211,7 @@ All endpoints support **CORS** (`Access-Control-Allow-Origin: *`, `Access-Contro
 - **Loopback Binding**: Listens exclusively on `localhost` to prevent unauthorized external network access.
 - **RFC 7636 PKCE Enforcement**: `code_challenge` (S256) is securely stored and validated against `code_verifier` with constant-time SHA-256 matching.
 - **Single-Use Authorization Codes**: Auth codes expire after 5 minutes and are invalidated immediately upon redemption.
-- **Isolated Local Keys**: RSA 2048-bit keypair is generated on startup (or persisted in-memory/temp config), ensuring tokens generated by `sso-local` cannot be mistaken for production Microsoft tokens.
+- **Isolated Local Keys**: RSA 2048-bit keypair is generated on startup (or persisted in-memory/temp config), ensuring tokens generated by `local-sso` cannot be mistaken for production Microsoft tokens.
 - **Clear Dev Indicator**: Tokens include a distinct `"iss": "http://localhost:8080/{tenant}/v2.0"` (or configurable Entra-compatible issuer) so production systems are protected.
 
 ---
@@ -240,5 +240,5 @@ All endpoints support **CORS** (`Access-Control-Allow-Origin: *`, `Access-Contro
 | 4 | OAuth/PKCE Helpers (`internal/oauth`) | PKCE generator/verifier, URL builders, JWT claim decoders | ⏳ Pending |
 | 5 | HTTP Server & Endpoints (`internal/server`) | Discovery, JWKS, Authorize prompt, Token exchange, User API, CORS middleware, `main.go` | ⏳ Pending |
 | 6 | Frontend Shell & Views (`web/`) | `index.html`, `style.css`, `app.js`, `auth_prompt.html` (interactive mock login), `#users`, `#config`, `#login` | ⏳ Pending |
-| 7 | Unit Tests & Build Verification | Run `go test ./...`, `go vet ./...`, and `go build -o sso-local .` | ⏳ Pending |
+| 7 | Unit Tests & Build Verification | Run `go test ./...`, `go vet ./...`, and `go build -o local-sso .` | ⏳ Pending |
 | 8 | Documentation Deliverables | `README.md` (with MSAL.js & frontend integration guide) and `docs/IMPLEMENTATION.md` | ⏳ Pending |

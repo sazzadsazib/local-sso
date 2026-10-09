@@ -39,7 +39,7 @@ func (a *Audience) UnmarshalJSON(data []byte) error {
 // String renders the audience list.
 func (a Audience) String() string { return string(a) }
 
-// Claims holds the subset of OIDC ID token claims sso-local surfaces in the
+// Claims holds the subset of OIDC ID token claims local-sso surfaces in the
 // login window. Microsoft Entra specific claims (oid/tid) are empty for other
 // providers.
 type IDClaims struct {

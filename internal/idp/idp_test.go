@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"math/big"
-	"sso-local/internal/idp"
+	"local-sso/internal/idp"
 	"testing"
 )
 

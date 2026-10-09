@@ -1,7 +1,7 @@
 {
-  "name": "sso-local-web",
-  "private": true,
+  "name": "local-sso",
   "version": "0.2.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

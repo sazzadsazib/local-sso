@@ -3,7 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"sso-local/internal/oauth"
+	"local-sso/internal/oauth"
 )
 
 func (s *Server) HandleDiscovery(w http.ResponseWriter, r *http.Request) {

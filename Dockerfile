@@ -1,5 +1,5 @@
 # ==============================================================================
-# Multi-stage Dockerfile for sso-local (Mock Microsoft Entra ID & SSO Playground)
+# Multi-stage Dockerfile for local-sso (Mock Microsoft Entra ID & SSO Playground)
 # Works out-of-the-box on Render, Railway, Fly.io, or any Docker container host.
 # ==============================================================================
 
@@ -22,14 +22,14 @@ COPY internal/ ./internal/
 COPY main.go ./
 COPY --from=frontend-builder /app/web/dist ./web/dist
 
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /app/sso-local .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /app/local-sso .
 
 # Stage 3: Minimal Alpine Runtime (~15MB total image size)
 FROM alpine:3.21
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 
-COPY --from=backend-builder /app/sso-local /usr/local/bin/sso-local
+COPY --from=backend-builder /app/local-sso /usr/local/bin/local-sso
 
 # Default Render port is 10000 (Render automatically sets $PORT env var)
 ENV PORT=10000
@@ -37,5 +37,5 @@ ENV HOST=0.0.0.0
 
 EXPOSE 10000
 
-ENTRYPOINT ["sso-local"]
+ENTRYPOINT ["local-sso"]
 CMD ["-no-browser"]

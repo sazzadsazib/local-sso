@@ -1,3 +1,3 @@
-module sso-local
+module local-sso
 
 go 1.22

@@ -1,6 +1,6 @@
-# sso-local — Technical Implementation Reference
+# local-sso — Technical Implementation Reference
 
-`sso-local` is a single-binary developer tool that runs a **Local Mock Microsoft Entra ID (OIDC) Identity Provider** and a **built-in SSO Test & Management Playground**.
+`local-sso` is a single-binary developer tool that runs a **Local Mock Microsoft Entra ID (OIDC) Identity Provider** and a **built-in SSO Test & Management Playground**.
 
 ---
 
@@ -15,7 +15,7 @@
                      1. Authorize Redir │                            │ 5. Session Created
                                         ▼                            │
 ┌────────────────────────────────────────────────────────────────────┴──────────────────────────────────────┐
-│  sso-local (Single Go Binary on http://localhost:8080)                                                    │
+│  local-sso (Single Go Binary on http://localhost:8080)                                                    │
 │                                                                                                           │
 │  ┌─────────────────────────┐   ┌──────────────────────────┐   ┌────────────────────────────────────────┐  │
 │  │ OIDC Discovery & JWKS   │   │ Interactive Mock Sign-in │   │ Token Signer & PKCE Engine             │  │
@@ -75,8 +75,8 @@ http://localhost:8080/{tenant}/oauth2/v2.0/authorize
 ```
 
 When this URL is opened:
-1. `sso-local` displays a mock Microsoft login screen where you select which user identity to authenticate as (e.g. `Alex Wilber` or `Megan Bowen`).
-2. Upon selection, `sso-local` generates an authorization code and redirects back to `http://localhost:3000/callback?code=...&state=12345`.
+1. `local-sso` displays a mock Microsoft login screen where you select which user identity to authenticate as (e.g. `Alex Wilber` or `Megan Bowen`).
+2. Upon selection, `local-sso` generates an authorization code and redirects back to `http://localhost:3000/callback?code=...&state=12345`.
 
 ### 3.2 MSAL.js / `@azure/msal-browser` Configuration
 ```typescript
@@ -102,7 +102,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);
 
 ## 4. Token & Claims Specification
 
-Tokens issued by `sso-local` are signed with an internal **RS256 2048-bit RSA key pair** and match Microsoft Entra ID v2.0 token claims:
+Tokens issued by `local-sso` are signed with an internal **RS256 2048-bit RSA key pair** and match Microsoft Entra ID v2.0 token claims:
 
 ### 4.1 Sample ID Token (`id_token`) Payload
 ```json
@@ -136,7 +136,7 @@ Tokens issued by `sso-local` are signed with an internal **RS256 2048-bit RSA ke
 
 ## 5. Mock User Directory & Custom Claims
 
-`sso-local` includes an in-memory user directory with REST APIs:
+`local-sso` includes an in-memory user directory with REST APIs:
 
 - `GET /api/users` — List all mock users
 - `POST /api/users` — Create a new mock user
@@ -152,4 +152,4 @@ You can configure mock users via the UI at `http://localhost:8080/#users`.
 
 The embedded web UI is compiled using Vite, TypeScript, and Tailwind CSS. The production assets (`web/dist`) are embedded directly into the Go binary using `//go:embed all:web`.
 
-Running `go build -o sso-local .` produces a self-contained executable that serves the IdP server, REST APIs, and the modern UI dashboard with zero external runtime dependencies.
+Running `go build -o local-sso .` produces a self-contained executable that serves the IdP server, REST APIs, and the modern UI dashboard with zero external runtime dependencies.

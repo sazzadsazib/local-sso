@@ -40,7 +40,7 @@ func NewKeyManager() (*KeyManager, error) {
 	}
 	return &KeyManager{
 		privateKey: priv,
-		keyID:      "sso-local-key-1",
+		keyID:      "local-sso-key-1",
 	}, nil
 }
 

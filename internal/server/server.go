@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
-	"sso-local/internal/idp"
+	"local-sso/internal/idp"
 	"strings"
 )
 
@@ -71,7 +71,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"name":"sso-local","version":"0.2.0"}`))
+		_, _ = w.Write([]byte(`{"name":"local-sso","version":"0.2.0"}`))
 	})
 
 	// 2. Client Playground & Relay APIs

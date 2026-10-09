@@ -10,7 +10,7 @@ import (
 )
 
 // DiscoveryDocument is the subset of an OpenID Provider Configuration document
-// (/.well-known/openid-configuration) that sso-local consumes.
+// (/.well-known/openid-configuration) that local-sso consumes.
 type DiscoveryDocument struct {
 	Issuer                string `json:"issuer"`
 	AuthorizationEndpoint string `json:"authorization_endpoint"`

@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
-	"sso-local/internal/server"
+	"local-sso/internal/server"
 	"strconv"
 	"time"
 	_ "time/tzdata"
@@ -117,7 +117,7 @@ func main() {
 	}
 
 	fmt.Println("================================================================")
-	fmt.Println("  sso-local — Local Mock Microsoft Entra ID (OIDC) & SSO Playground")
+	fmt.Println("  local-sso — Local Mock Microsoft Entra ID (OIDC) & SSO Playground")
 	fmt.Println("================================================================")
 	fmt.Printf("  -> Web Dashboard:    http://localhost:%d/#projects\n", port)
 	fmt.Printf("  -> Mock Users:       http://localhost:%d/#users\n", port)
@@ -140,7 +140,7 @@ func main() {
 		signal.Notify(sigChan, os.Interrupt)
 		<-sigChan
 
-		fmt.Println("\nShutting down sso-local...")
+		fmt.Println("\nShutting down local-sso...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = httpServer.Shutdown(ctx)

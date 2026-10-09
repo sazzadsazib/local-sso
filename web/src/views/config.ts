@@ -79,12 +79,16 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       .replace(/'/g, '&#039;');
   }
 
+  const tokenProxyUrl = `${effectiveOrigin}/api/token`;
+  const verifyApiUrl = `${effectiveOrigin}/api/verify`;
+
   const endpointsList = [
     {
       name: 'OIDC Authorize Endpoint',
       method: 'GET' as const,
       url: authorizeBaseUrl,
-      description: 'Initiates OAuth2/OIDC sign-in flow and returns an authorization code with PKCE protection.',
+      isCustomMock: false,
+      description: 'Standard Entra v2.0: Initiates OAuth2/OIDC sign-in flow and returns an authorization code with PKCE protection.',
       requestSample: `GET /${tenant}/oauth2/v2.0/authorize?client_id=${project.clientId}&response_type=code&redirect_uri=${encodeURIComponent(project.redirectUri)}&scope=${encodeURIComponent(project.scope)}&response_mode=query&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256&prompt=select_account HTTP/1.1\nHost: ${knownHost}`,
       responseStatus: '302 Found (Redirect with Code)',
       responseSample: `HTTP/1.1 302 Found\nLocation: ${project.redirectUri}?code=mock_code_8f2b1d9c&state=xyz123`,
@@ -93,7 +97,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       name: 'OAuth2 Token Endpoint',
       method: 'POST' as const,
       url: tokenUrl,
-      description: 'Redeems authorization code + PKCE verifier or refresh token for RS256 ID & Access tokens.',
+      isCustomMock: false,
+      description: 'Standard Entra v2.0: Redeems authorization code + PKCE verifier or refresh token for RS256 ID & Access tokens.',
       requestSample: `POST /${tenant}/oauth2/v2.0/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code\n&client_id=${project.clientId}\n&code=mock_code_8f2b1d9c\n&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\n&redirect_uri=${encodeURIComponent(project.redirectUri)}`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
@@ -103,7 +108,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
           expires_in: 3600,
           access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzby1sb2NhbC1hY3RpdmUta2V5IiwidHlwIjoiSldUIn0.ey...',
           id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzby1sb2NhbC1hY3RpdmUta2V5IiwidHlwIjoiSldUIn0.ey...',
-          refresh_token: 'sso-local-refresh-8f2b1d9c4e0a7',
+          refresh_token: 'local-sso-refresh-8f2b1d9c4e0a7',
         },
         null,
         2
@@ -113,7 +118,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       name: 'OIDC UserInfo Endpoint',
       method: 'GET' as const,
       url: userinfoUrl,
-      description: 'Standard OpenID Connect UserInfo endpoint returning authenticated profile and claims for a Bearer token.',
+      isCustomMock: true,
+      description: 'Non-standard Entra extension: Real Microsoft Entra ID omits standard /userinfo (uses Microsoft Graph API). Provided by local-sso for compatibility with generic OIDC libraries (Better Auth, NextAuth, Spring). Use if needed by your client.',
       requestSample: `GET /${tenant}/oidc/userinfo HTTP/1.1\nHost: ${knownHost}\nAuthorization: Bearer <access_token>`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
@@ -137,10 +143,52 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       ),
     },
     {
+      name: 'Browser CORS Token Proxy',
+      method: 'POST' as const,
+      url: tokenProxyUrl,
+      isCustomMock: true,
+      description: 'Non-standard Entra helper: CORS-friendly JSON token exchange endpoint for browser SPAs and test scripts to exchange codes without cross-origin issues.',
+      requestSample: `POST /api/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/json\n\n{\n  "token_url": "${tokenUrl}",\n  "client_id": "${project.clientId}",\n  "code": "mock_code_8f2b1d9c",\n  "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",\n  "redirect_uri": "${project.redirectUri}"\n}`,
+      responseStatus: '200 OK (application/json)',
+      responseSample: JSON.stringify(
+        {
+          access_token: 'eyJhbGciOiJSUzI1NiIs...',
+          id_token: 'eyJhbGciOiJSUzI1NiIs...',
+          token_type: 'Bearer',
+          expires_in: 3600,
+        },
+        null,
+        2
+      ),
+    },
+    {
+      name: 'Token Signature & Claims Validator',
+      method: 'POST' as const,
+      url: verifyApiUrl,
+      isCustomMock: true,
+      description: 'Non-standard Entra helper: Cryptographically validates RS256 signatures against the local JWKS and returns verified claims payload for client-side test automation.',
+      requestSample: `POST /api/verify HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/json\n\n{\n  "id_token": "eyJhbGciOiJSUzI1NiIs...",\n  "jwks_uri": "${jwksUrl}",\n  "issuer": "${issuerUrl}",\n  "audience": "${project.clientId}"\n}`,
+      responseStatus: '200 OK (application/json)',
+      responseSample: JSON.stringify(
+        {
+          verified: true,
+          claims: {
+            sub: 'sub-sazzad-sazib-001',
+            name: 'Sazzad Sazib',
+            email: 'sazib@gmail.com',
+            roles: ['Global Administrator', 'User'],
+          },
+        },
+        null,
+        2
+      ),
+    },
+    {
       name: 'Directory Mock Users API',
       method: 'GET' as const,
       url: usersApiUrl,
-      description: 'Directory API to list, create, and manage mock personas and claims for SSO integration testing.',
+      isCustomMock: true,
+      description: 'Non-standard Entra helper: REST API to list, create, and manage mock personas and claims without requiring Microsoft Graph admin permissions.',
       requestSample: `GET /api/users HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
@@ -170,7 +218,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       name: 'OpenID Discovery Document (.well-known)',
       method: 'GET' as const,
       url: discoveryUrl,
-      description: 'Auto-discovery configuration document (.well-known) used by OIDC libraries (NextAuth, Better Auth, Supabase, Spring Boot).',
+      isCustomMock: false,
+      description: 'Standard Entra v2.0: Auto-discovery configuration document (.well-known) used by OIDC libraries (NextAuth, Better Auth, Supabase, Spring Boot).',
       requestSample: `GET /${tenant}/v2.0/.well-known/openid-configuration HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
@@ -194,7 +243,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       name: 'JWKS Public Keys (RS256)',
       method: 'GET' as const,
       url: jwksUrl,
-      description: 'JSON Web Key Set containing RSA public keys used by resource servers to verify token signatures.',
+      isCustomMock: false,
+      description: 'Standard Entra v2.0: JSON Web Key Set containing RSA public keys used by resource servers to verify token signatures.',
       requestSample: `GET /${tenant}/discovery/v2.0/keys HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
@@ -204,7 +254,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
               kty: 'RSA',
               use: 'sig',
               alg: 'RS256',
-              kid: 'sso-local-active-key',
+              kid: 'local-sso-active-key',
               n: 'u9h3K8x2Y_... (2048-bit RSA Modulus)',
               e: 'AQAB',
             },
@@ -218,7 +268,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       name: 'OIDC Token Issuer (iss claim)',
       method: 'CONFIG' as const,
       url: issuerUrl,
-      description: 'The expected OIDC token issuer URI validated against the "iss" claim inside signed ID tokens.',
+      isCustomMock: false,
+      description: 'Standard Entra v2.0: The expected OIDC token issuer URI validated against the "iss" claim inside signed ID tokens.',
       requestSample: `// Decoded ID Token Payload Claim:\n{\n  "iss": "${issuerUrl}",\n  "aud": "${project.clientId}",\n  "sub": "sub-sazzad-sazib-001",\n  "tid": "${tenant}"\n}`,
       responseStatus: 'JWT Claims Match',
       responseSample: `iss == "${issuerUrl}"\naud == "${project.clientId}"\nSignature: Validated via JWKS`,
@@ -227,7 +278,8 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       name: 'Authority URL (MSAL.js)',
       method: 'CONFIG' as const,
       url: authorityUrl,
-      description: 'Base authority string configured in @azure/msal-browser PublicClientApplication.',
+      isCustomMock: false,
+      description: 'Standard Entra v2.0: Base authority string configured in @azure/msal-browser PublicClientApplication.',
       requestSample: `import { PublicClientApplication } from "@azure/msal-browser";\n\nexport const msal = new PublicClientApplication({\n  auth: {\n    clientId: "${project.clientId}",\n    authority: "${authorityUrl}",\n    knownAuthorities: ["${knownHost}"]\n  }\n});`,
       responseStatus: 'MSAL Instance Config',
       responseSample: `{\n  "authority": "${authorityUrl}",\n  "knownAuthorities": ["${knownHost}"]\n}`,
@@ -236,12 +288,16 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       name: 'End Session / Logout',
       method: 'GET' as const,
       url: logoutUrl,
-      description: 'Terminates SSO session and redirects user to post_logout_redirect_uri.',
+      isCustomMock: false,
+      description: 'Standard Entra v2.0: Terminates SSO session and redirects user to post_logout_redirect_uri.',
       requestSample: `GET /${tenant}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(project.rootUrl || 'http://localhost:3000')} HTTP/1.1\nHost: ${knownHost}`,
       responseStatus: '302 Found (Redirect)',
       responseSample: `HTTP/1.1 302 Found\nLocation: ${project.rootUrl || 'http://localhost:3000'}`,
     },
   ];
+
+  const standardEndpoints = endpointsList.filter((e) => !e.isCustomMock);
+  const customEndpoints = endpointsList.filter((e) => e.isCustomMock);
 
   function renderEndpointCard(item: (typeof endpointsList)[0]): string {
     const methodBadge = {
@@ -253,9 +309,18 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
     return `
       <div class="p-3.5 bg-slate-900/90 hover:bg-slate-900 rounded-xl border border-slate-800 transition space-y-2.5">
         <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 min-w-0">
+          <div class="flex items-center gap-2 flex-wrap min-w-0">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider border ${methodBadge}">${item.method}</span>
             <span class="text-white font-sans font-semibold text-xs truncate">${item.name}</span>
+            ${item.isCustomMock
+              ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  Custom for Mock (Optional)
+                </span>`
+              : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
+                  Standard Entra v2.0
+                </span>`
+            }
           </div>
           <button data-copy="${item.url}" class="copy-btn shrink-0 p-1.5 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy URL" title="Copy URL">
             ${icon('clipboard', 'w-3.5 h-3.5')}
@@ -486,31 +551,70 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
 
         </div>
 
-        <!-- Right: Endpoints -->
+        <!-- Right: Standard Entra Endpoints -->
         <div class="lg:col-span-7 space-y-6">
           
-          <!-- Endpoints List -->
           <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h3 class="text-base font-bold text-white flex items-center gap-2">
-                ${icon('globe', 'w-4 h-4 text-orange-400')} Standard Microsoft Entra v2.0 &amp; Directory Endpoints
+                ${icon('globe', 'w-4 h-4 text-sky-400')} Standard Microsoft Entra v2.0 Endpoints
               </h3>
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                ${endpointsList.length} Endpoints
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                ${standardEndpoints.length} Endpoints
               </span>
             </div>
 
             <p class="text-xs text-slate-400">
-              Complete OAuth2, OpenID Connect, and Mock User Directory endpoints compatible with Microsoft Entra ID v2.0. Click any endpoint's <strong class="text-slate-300">Request &amp; Response Samples</strong> to inspect HTTP formats and JSON payloads.
+              Standard OpenID Connect and OAuth 2.0 endpoints compliant with the official Microsoft Entra ID v2.0 specification.
             </p>
 
             <div class="space-y-3 font-sans">
-              ${endpointsList.map((ep) => renderEndpointCard(ep)).join('')}
+              ${standardEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
             </div>
           </div>
 
         </div>
 
+      </div>
+
+      <!-- Bottom Section: Custom for Mock Endpoints -->
+      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5 border border-amber-500/20 shadow-xl shadow-amber-500/5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              ${icon('zap', 'w-4 h-4')}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-base font-bold text-white">Custom Mock Endpoints &amp; Helper APIs</h3>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Custom for Mock (Optional)
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Non-standard extensions provided by local-sso to ease mock integration testing and generic OIDC library compatibility.</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            ${customEndpoints.length} Helper Endpoints
+          </span>
+        </div>
+
+        <!-- Informational Callout regarding why these exist -->
+        <div class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-xs text-slate-300 flex items-start gap-3">
+          <div class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+            ${icon('info', 'w-4 h-4')}
+          </div>
+          <div class="space-y-1">
+            <span class="font-semibold text-amber-300 text-xs">Standard Entra vs. Custom for Mock Helpers</span>
+            <p class="text-slate-400 text-[11px] leading-relaxed">
+              Official Microsoft Entra v2.0 does not supply a standard OIDC <code>/userinfo</code> endpoint (it uses Microsoft Graph instead). Generic OIDC clients (such as <strong>Better Auth</strong>, <strong>NextAuth</strong>, <strong>Spring Security</strong>, etc.) often expect a standard UserInfo endpoint or simplified token APIs to function without complex Graph SDK configuration. If your client wants them, you can freely use them; otherwise, stick exclusively to the standard Entra v2.0 endpoints above.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 font-sans">
+          ${customEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
+        </div>
       </div>
 
     </div>

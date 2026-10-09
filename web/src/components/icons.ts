@@ -24,6 +24,7 @@ export type IconName =
   | 'plus'
   | 'folder'
   | 'chevron-down'
+  | 'info'
   | 'external-link';
 
 const PATHS: Record<IconName, string> = {
@@ -67,6 +68,7 @@ const PATHS: Record<IconName, string> = {
   folder:
     '<path d="M20 9a2 2 0 0 0-1.2-1.87l-2-1A2 2 0 0 0 15.3 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z"/>',
   'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   'external-link':
     '<path d="M15 3h6v6"/><path d="M21 3 11 13"/><path d="M5 5v14h14"/>',
 };

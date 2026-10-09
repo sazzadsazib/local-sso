@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"sso-local/internal/oauth"
+	"local-sso/internal/oauth"
 	"testing"
 )
 

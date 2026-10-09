@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"sso-local/internal/idp"
+	"local-sso/internal/idp"
 	"strings"
 )
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# sso-local cross-platform build
+# local-sso cross-platform build
 #
-#   ./build.sh                 # frontend + host binary ./sso-local + every target -> bin/
+#   ./build.sh                 # frontend + host binary ./local-sso + every target -> bin/
 #   ./build.sh local           # frontend + host binary only (what ./run.sh & docs use)
 #   ./build.sh linux           # linux/amd64 + linux/arm64
 #   ./build.sh linux/amd64     # one target
@@ -65,15 +65,15 @@ echo "==> 2/3 go build (CGO_ENABLED=0, static, embedded web/dist)"
 
 case "$MODE" in
   local)
-    build_one "$HOST_OS" "$HOST_ARCH" "sso-local"
+    build_one "$HOST_OS" "$HOST_ARCH" "local-sso"
     ;;
 
   all)
-    build_one "$HOST_OS" "$HOST_ARCH" "sso-local"
+    build_one "$HOST_OS" "$HOST_ARCH" "local-sso"
     mkdir -p bin
     for t in "${ALL_TARGETS[@]}"; do
       os="${t%/*}"; arch="${t#*/}"
-      name="sso-local-${os}-${arch}"
+      name="local-sso-${os}-${arch}"
       [ "$os" = "windows" ] && name="${name}.exe"
       build_one "$os" "$arch" "bin/${name}"
     done
@@ -84,7 +84,7 @@ case "$MODE" in
     for t in "${ALL_TARGETS[@]}"; do
       [ "${t%/*}" = "$MODE" ] || continue
       arch="${t#*/}"
-      name="sso-local-${MODE}-${arch}"
+      name="local-sso-${MODE}-${arch}"
       [ "$MODE" = "windows" ] && name="${name}.exe"
       build_one "$MODE" "$arch" "bin/${name}"
     done
@@ -93,7 +93,7 @@ case "$MODE" in
   *)
     os="${MODE%/*}"; arch="${MODE#*/}"
     mkdir -p bin
-    name="sso-local-${os}-${arch}"
+    name="local-sso-${os}-${arch}"
     [ "$os" = "windows" ] && name="${name}.exe"
     build_one "$os" "$arch" "bin/${name}"
     ;;
@@ -102,16 +102,16 @@ esac
 # ---------------------------------------------------------------- report
 echo "==> 3/3 artifacts"
 if [ "$MODE" = "local" ]; then
-  file sso-local 2>/dev/null || true
-  ls -lh sso-local
+  file local-sso 2>/dev/null || true
+  ls -lh local-sso
 else
-  (file sso-local bin/* 2>/dev/null || true)
+  (file local-sso bin/* 2>/dev/null || true)
   echo
-  ls -lh sso-local bin/* 2>/dev/null || true
+  ls -lh local-sso bin/* 2>/dev/null || true
   echo
   (cd bin && shasum -a 256 * 2>/dev/null || sha256sum * 2>/dev/null || true)
   echo
-  echo "Copy to Linux:   scp bin/sso-local-linux-amd64 host:/usr/local/bin/sso-local && ssh host chmod +x /usr/local/bin/sso-local"
+  echo "Copy to Linux:   scp bin/local-sso-linux-amd64 host:/usr/local/bin/local-sso && ssh host chmod +x /usr/local/bin/local-sso"
 fi
 
 echo

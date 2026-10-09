@@ -97,12 +97,12 @@ stop() {
 trap 'stop; exit 0' INT TERM
 trap 'stop' EXIT
 
-echo "==> go build -> .dev/sso-local-dev"
+echo "==> go build -> .dev/local-sso-dev"
 mkdir -p .dev
-go build -o .dev/sso-local-dev .
+go build -o .dev/local-sso-dev .
 
 echo "==> Go IdP (internal) http://${GO_ADDR}  tenant=${TENANT}"
-./.dev/sso-local-dev -port "$GO_PORT" -tenant "$TENANT" -no-browser &
+./.dev/local-sso-dev -port "$GO_PORT" -tenant "$TENANT" -no-browser &
 GO_PID=$!
 
 for _ in $(seq 1 60); do

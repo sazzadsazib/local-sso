@@ -1,5 +1,5 @@
 // Package oauth implements the OAuth 2.0 / OpenID Connect primitives used by
-// sso-local: PKCE, authorize URL construction, token exchange, discovery and
+// local-sso: PKCE, authorize URL construction, token exchange, discovery and
 // ID token handling.
 package oauth
 
@@ -12,7 +12,7 @@ import (
 )
 
 // CodeChallengeMethodS256 is the only PKCE challenge method supported by
-// sso-local, as recommended by RFC 9207 guidance for public clients.
+// local-sso, as recommended by RFC 9207 guidance for public clients.
 const CodeChallengeMethodS256 = "S256"
 
 // randomB64 returns a URL-safe base64 string without padding derived from n

@@ -149,7 +149,7 @@ async function route() {
     <main id="view-container" class="flex-1"></main>
     <footer class="border-t border-white/10 bg-black/40 backdrop-blur-md">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-        <span class="text-slate-500">sso-local &mdash; Local Entra ID (OIDC) Provider &amp; SSO Playground</span>
+        <span class="text-slate-500">local-sso &mdash; Local Entra ID (OIDC) Provider &amp; SSO Playground</span>
         <span class="flex items-center gap-1.5 text-slate-500">
           Developed by
           <a href="https://github.com/sazzadsazib" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-slate-300 hover:text-orange-400 transition-colors font-medium">

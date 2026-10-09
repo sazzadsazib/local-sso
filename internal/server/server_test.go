@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"sso-local/internal/idp"
-	"sso-local/internal/oauth"
-	"sso-local/internal/server"
+	"local-sso/internal/idp"
+	"local-sso/internal/oauth"
+	"local-sso/internal/server"
 	"strings"
 	"testing"
 )

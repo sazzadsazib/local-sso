@@ -1,4 +1,4 @@
-# sso-local — Implementation Guide (mock backend)
+# local-sso — Implementation Guide (mock backend)
 
 The whole flow: **copy URL from Config → put it in your mock API's redirect → on callback, one fetch to validate/exchange → read the data.**
 
@@ -214,6 +214,6 @@ grant_type=refresh_token&refresh_token=rt...&client_id={CLIENT_ID}
 | `...code_verifier is required for PKCE` | you sent `code_challenge` but no `code_verifier` |
 | `...authorization code expired` / `not found or already used` | code older than 5 min or redeemed twice |
 | `...client_id mismatch` | different `client_id` at authorize vs token |
-| callback page blank | `/callback` must be served by **your** app, not proxied to sso-local |
+| callback page blank | `/callback` must be served by **your** app, not proxied to local-sso |
 
 Codes: single-use, 5-minute TTL. Nothing here should run in production — localhost only.

@@ -18,7 +18,7 @@ export function renderNavbar(activeTab: string): string {
               <path d="m9 12 2 2 4-4"/>
             </svg>
           </span>
-          <span class="font-semibold text-[15px] tracking-tight text-white whitespace-nowrap">sso-local</span>
+          <span class="font-semibold text-[15px] tracking-tight text-white whitespace-nowrap">local-sso</span>
           <span class="hidden lg:inline-flex items-center px-2 py-0.5 rounded-full border border-white/10 bg-white/5 text-[10px] font-medium text-slate-400 whitespace-nowrap">Mock Entra ID v2.0</span>
         </a>
 
