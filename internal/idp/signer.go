@@ -108,6 +108,9 @@ func (s *Signer) GenerateTokens(user MockUser, clientID, tenant, nonce, scope, i
 	if len(user.Groups) > 0 {
 		idClaims["groups"] = user.Groups
 	}
+	if user.AvatarURL != "" {
+		idClaims["picture"] = user.AvatarURL
+	}
 	for k, v := range user.CustomClaims {
 		idClaims[k] = v
 	}

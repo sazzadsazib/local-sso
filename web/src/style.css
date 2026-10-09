@@ -159,7 +159,7 @@
     rgba(255, 255, 255, 0.022) 55%,
     rgba(255, 255, 255, 0.012) 100%
   );
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow:
@@ -196,6 +196,7 @@
 /* Subtle micro-tilt for specific cards (profile cards, info cards) */
 .tilt-card {
   position: relative;
+  border: 1px solid transparent;
   transform-style: preserve-3d;
   will-change: transform;
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
@@ -233,7 +234,7 @@
 
 .glass-card {
   background: rgba(255, 255, 255, 0.035);
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   backdrop-filter: blur(20px) saturate(170%);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.05) inset;
@@ -248,7 +249,8 @@
 }
 
 .glass-hover {
-  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease,
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease, background-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 .glass-hover:hover {
@@ -292,6 +294,67 @@
   color: #fff;
 }
 
+/* Mock user identity claims card ----------------------------------------- */
+.user-claims-card {
+  background-color: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.user-claim-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 105, 0, 0.15);
+  color: #ff9733;
+  border: 1px solid rgba(255, 105, 0, 0.25);
+}
+.user-claim-label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+.user-claim-val {
+  color: #e2e8f0;
+  max-width: 170px;
+}
+.copy-claim-btn {
+  background: transparent;
+  color: #64748b;
+}
+.copy-claim-btn:hover {
+  color: #ff9733;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Live Authorize URL Preview & Target Authority cards -------------------- */
+.auth-preview-card {
+  background-color: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.auth-preview-title {
+  color: #a1a1a1;
+}
+.auth-preview-tag {
+  background: rgba(255, 105, 0, 0.15);
+  color: #ff9733;
+  border: 1px solid rgba(255, 105, 0, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.auth-preview-url {
+  background-color: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ff9733;
+}
+.auth-authority-card {
+  background-color: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.auth-authority-val {
+  color: #e2e8f0;
+}
+
 /* Form controls — consistent height, radius and alignment ----------------- */
 input[type="text"],
 input[type="email"],
@@ -325,6 +388,29 @@ select {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #404040;
+}
+
+/* Scrollable without visible scrollbars (Modals & clean containers) */
+.no-scrollbar::-webkit-scrollbar,
+.modal-scroll::-webkit-scrollbar,
+#userModal .glass-panel::-webkit-scrollbar,
+#projectModal .glass-panel::-webkit-scrollbar,
+[id*="Modal"] .glass-panel::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar-track,
+.no-scrollbar::-webkit-scrollbar-thumb {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.no-scrollbar,
+.modal-scroll,
+#userModal .glass-panel,
+#projectModal .glass-panel,
+[id*="Modal"] .glass-panel {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
 }
 
 /* Syntax Highlighting (Prism.js - GitHub Dark / Vercel Dark palette) */
@@ -399,3 +485,801 @@ pre code {
 .token.italic {
   font-style: italic;
 }
+
+/* ==========================================================================
+   Light Theme System (Activated when html has .light class)
+   ========================================================================== */
+html.light {
+  --brand: #ff6900;
+  --brand-soft: rgba(255, 105, 0, 0.12);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-hover: rgba(255, 255, 255, 1);
+  color-scheme: light;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html.light body {
+  background-color: #f8fafc;
+  color: #0f172a;
+  background-image:
+    radial-gradient(640px circle at 12% -10%, rgba(255, 105, 0, 0.09), transparent 60%),
+    radial-gradient(720px circle at 88% 0%, rgba(0, 0, 0, 0.035), transparent 55%),
+    radial-gradient(900px circle at 50% 110%, rgba(255, 105, 0, 0.05), transparent 60%),
+    linear-gradient(to bottom, #ffffff, #f1f5f9 65%);
+}
+
+html.light body::before {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+  mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 40%, transparent 88%);
+  -webkit-mask-image: radial-gradient(ellipse 120% 80% at 50% 0%, #000 40%, transparent 88%);
+}
+
+html.light #cursor-glow {
+  z-index: 0 !important;
+  pointer-events: none !important;
+  mix-blend-mode: normal !important;
+  background:
+    radial-gradient(
+      520px circle at var(--cursor-x, -999px) var(--cursor-y, -999px),
+      rgba(255, 140, 50, 0.04) 0%,
+      transparent 65%
+    ) !important;
+}
+
+/* Glass & Surfaces */
+html.light .glass-panel {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid transparent !important;
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 1) inset,
+    0 10px 30px -10px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Vercel-style dynamic border beam in light mode (gentle, refined) */
+html.light .glass-panel::before {
+  background: radial-gradient(
+    320px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgba(255, 140, 50, 0.18) 0%,
+    rgba(0, 0, 0, 0.04) 30%,
+    transparent 65%
+  ) !important;
+}
+
+html.light .glass-panel::after {
+  display: none !important;
+}
+
+/* Dynamic Card Hover in light mode - stable layout with no length expansion */
+html.light .glass-hover {
+  border: 1px solid transparent !important;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html.light .glass-hover:hover {
+  border-color: #cbd5e1 !important;
+  background-color: #ffffff !important;
+  transform: none !important;
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 1) inset,
+    0 12px 28px -10px rgba(0, 0, 0, 0.08),
+    0 4px 12px -4px rgba(255, 105, 0, 0.05) !important;
+}
+
+/* Specular Sheen for 3D Tilt Cards */
+html.light .tilt-card {
+  border: 1px solid transparent !important;
+}
+
+html.light .tilt-card::after {
+  background: radial-gradient(
+    450px circle at var(--mouse-x, -100%) var(--mouse-y, -100%),
+    rgba(255, 255, 255, 0.6) 0%,
+    transparent 65%
+  ) !important;
+}
+
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+html.light .glass-card:hover {
+  border-color: #cbd5e1 !important;
+  transform: none !important;
+  box-shadow: 0 10px 22px -10px rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .glass-nav {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light .glass-hero {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 247, 240, 0.75) 100%
+  ) !important;
+  border-color: rgba(255, 105, 0, 0.25) !important;
+  box-shadow: 0 12px 32px -12px rgba(255, 105, 0, 0.12) !important;
+}
+
+html.light footer {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-top-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Typography Overrides */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6 {
+  color: #0f172a !important;
+}
+
+html.light span.text-white,
+html.light p.text-white,
+html.light div.text-white,
+html.light strong,
+html.light b {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+html.light .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html.light .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.light .text-slate-600 {
+  color: #475569 !important;
+}
+
+/* Background Overrides */
+html.light [class*="bg-slate-950"],
+html.light [class*="bg-slate-900"],
+html.light .bg-slate-950,
+html.light .bg-slate-900 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-slate-800,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/90 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .bg-black\/30,
+html.light .bg-black\/40 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light .bg-white\/5,
+html.light .bg-white\/\[0\.03\],
+html.light .bg-white\/\[0\.04\] {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Border Overrides */
+html.light .border-slate-900,
+html.light .border-slate-800,
+html.light .border-slate-800\/60,
+html.light .border-slate-800\/80 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .border-slate-700,
+html.light .border-slate-700\/60,
+html.light .border-slate-700\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+html.light .border-white\/10,
+html.light .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Form Controls */
+html.light input,
+html.light input[type="text"],
+html.light input[type="email"],
+html.light input[type="url"],
+html.light input[type="password"],
+html.light input[type="number"],
+html.light select,
+html.light textarea {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  color-scheme: light !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light label {
+  color: #475569 !important;
+}
+
+html.light #userAvatar,
+html.light #userName,
+html.light #userEmail,
+html.light #userGivenName,
+html.light #userFamilyName,
+html.light #userRoles,
+html.light #userGroups {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #ea5b00 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(234, 91, 0, 0.2) !important;
+}
+
+/* ==========================================================================
+   Button System & Interactive States in Light Mode
+   ========================================================================== */
+
+/* 1. Solid Primary Action Buttons (Vibrant Orange with Crisp White Text) */
+html.light button.bg-sky-500,
+html.light button.bg-sky-600,
+html.light button.bg-orange-500,
+html.light button.bg-orange-600,
+html.light a.bg-sky-500,
+html.light a.bg-sky-600,
+html.light a.bg-orange-500,
+html.light a.bg-orange-600,
+html.light button#btnStartAuth,
+html.light button#copyAuthorizeUrl,
+html.light button#btnSaveConfig,
+html.light form button[type="submit"],
+html.light a[href="#login"].bg-gradient-to-r,
+html.light .btn-submit,
+html.light [class*="bg-gradient-to-r"].text-white {
+  background: #ff6900 !important;
+  color: #ffffff !important;
+  border: 1px solid #ea580c !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 4px 12px -2px rgba(255, 105, 0, 0.3) !important;
+}
+
+html.light button.bg-sky-500:hover,
+html.light button.bg-sky-600:hover,
+html.light button.bg-orange-500:hover,
+html.light button.bg-orange-600:hover,
+html.light a.bg-sky-500:hover,
+html.light a.bg-sky-600:hover,
+html.light a.bg-orange-500:hover,
+html.light a.bg-orange-600:hover,
+html.light button#btnStartAuth:hover,
+html.light button#copyAuthorizeUrl:hover,
+html.light button#btnSaveConfig:hover,
+html.light form button[type="submit"]:hover,
+html.light a[href="#login"].bg-gradient-to-r:hover,
+html.light .btn-submit:hover,
+html.light [class*="bg-gradient-to-r"].text-white:hover {
+  background: #ea580c !important;
+  color: #ffffff !important;
+  border-color: #c2410c !important;
+}
+
+html.light button.bg-sky-500 *,
+html.light button.bg-sky-600 *,
+html.light button.bg-orange-500 *,
+html.light button.bg-orange-600 *,
+html.light a.bg-sky-500 *,
+html.light a.bg-sky-600 *,
+html.light a.bg-orange-500 *,
+html.light a.bg-orange-600 *,
+html.light button#btnStartAuth *,
+html.light button#copyAuthorizeUrl *,
+html.light button#btnSaveConfig *,
+html.light form button[type="submit"] *,
+html.light a[href="#login"].bg-gradient-to-r *,
+html.light .btn-submit *,
+html.light [class*="bg-gradient-to-r"].text-white *,
+html.light .logo-mark *,
+html.light .avatar-gradient {
+  color: #ffffff !important;
+}
+
+html.light button.bg-sky-500 svg,
+html.light button.bg-sky-600 svg,
+html.light button.bg-orange-500 svg,
+html.light button.bg-orange-600 svg,
+html.light a.bg-sky-500 svg,
+html.light a.bg-sky-600 svg,
+html.light a.bg-orange-500 svg,
+html.light a.bg-orange-600 svg,
+html.light button#btnStartAuth svg,
+html.light button#copyAuthorizeUrl svg,
+html.light button#btnSaveConfig svg,
+html.light form button[type="submit"] svg,
+html.light a[href="#login"].bg-gradient-to-r svg,
+html.light .btn-submit svg,
+html.light [class*="bg-gradient-to-r"].text-white svg,
+html.light .logo-mark svg {
+  color: #ffffff !important;
+  stroke: currentColor;
+}
+
+/* 2. Highlighting & Active Buttons / Tabs (Light Transparent Orange BG with Rich Orange Text) */
+html.light [class*="bg-orange-500/"],
+html.light [class*="bg-sky-500/"],
+html.light nav a[class*="bg-orange-500/"],
+html.light nav a[class*="bg-sky-500/"],
+html.light nav a.bg-orange-500\/15,
+html.light .glass-nav a[class*="bg-orange-500/"],
+html.light .guide-nav-btn[class*="bg-orange-500/"],
+html.light .mw-sub-btn[class*="bg-orange-500/"],
+html.light #tabMsal.bg-sky-500\/20,
+html.light #tabCurl.bg-sky-500\/20,
+html.light #btnVerify,
+html.light .btn-quick-login,
+html.light [data-configure] {
+  background-color: rgba(255, 105, 0, 0.12) !important;
+  color: #ea580c !important;
+  border: 1px solid rgba(255, 105, 0, 0.3) !important;
+}
+
+html.light [class*="bg-orange-500/"] *,
+html.light [class*="bg-sky-500/"] *,
+html.light nav a[class*="bg-orange-500/"] *,
+html.light nav a[class*="bg-sky-500/"] *,
+html.light nav a.bg-orange-500\/15 *,
+html.light .glass-nav a[class*="bg-orange-500/"] *,
+html.light .guide-nav-btn[class*="bg-orange-500/"] *,
+html.light .mw-sub-btn[class*="bg-orange-500/"] *,
+html.light #tabMsal.bg-sky-500\/20 *,
+html.light #tabCurl.bg-sky-500\/20 *,
+html.light #btnVerify *,
+html.light .btn-quick-login *,
+html.light [data-configure] * {
+  color: #ea580c !important;
+}
+
+html.light [class*="bg-orange-500/"] svg,
+html.light [class*="bg-sky-500/"] svg,
+html.light nav a[class*="bg-orange-500/"] svg,
+html.light nav a[class*="bg-sky-500/"] svg,
+html.light nav a.bg-orange-500\/15 svg,
+html.light .glass-nav a[class*="bg-orange-500/"] svg,
+html.light .guide-nav-btn[class*="bg-orange-500/"] svg,
+html.light .mw-sub-btn[class*="bg-orange-500/"] svg,
+html.light #tabMsal.bg-sky-500\/20 svg,
+html.light #tabCurl.bg-sky-500\/20 svg,
+html.light #btnVerify svg,
+html.light .btn-quick-login svg,
+html.light [data-configure] svg {
+  color: #ea580c !important;
+  stroke: currentColor;
+}
+
+html.light [class*="bg-orange-500/"]:hover,
+html.light [class*="bg-sky-500/"]:hover,
+html.light nav a[class*="bg-orange-500/"]:hover,
+html.light nav a[class*="bg-sky-500/"]:hover,
+html.light .glass-nav a[class*="bg-orange-500/"]:hover,
+html.light .guide-nav-btn[class*="bg-orange-500/"]:hover,
+html.light .mw-sub-btn[class*="bg-orange-500/"]:hover,
+html.light #tabMsal.bg-sky-500\/20:hover,
+html.light #tabCurl.bg-sky-500\/20:hover,
+html.light #btnVerify:hover,
+html.light .btn-quick-login:hover,
+html.light [data-configure]:hover {
+  background-color: rgba(255, 105, 0, 0.18) !important;
+  color: #c2410c !important;
+  border-color: rgba(255, 105, 0, 0.45) !important;
+}
+
+/* 3. Inactive Navigation Tabs & Guide Tabs */
+html.light nav a:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]),
+html.light .guide-nav-btn:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]),
+html.light .mw-sub-btn:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]) {
+  color: #64748b !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+html.light nav a:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]):hover,
+html.light .guide-nav-btn:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]):hover,
+html.light .mw-sub-btn:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]):hover {
+  color: #0f172a !important;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light nav a:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]) *,
+html.light .guide-nav-btn:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]) *,
+html.light .mw-sub-btn:not([class*="bg-orange-500/"]):not([class*="bg-sky-500/"]) * {
+  color: inherit !important;
+}
+
+/* 4. Secondary Action Buttons (Clean Surface with Slate Border) */
+html.light .btn-edit,
+html.light .copy-btn,
+html.light .copy-code-btn,
+html.light button.bg-slate-800,
+html.light a.bg-slate-800,
+html.light #btnNewProject,
+html.light #btnRefresh {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .btn-edit:hover,
+html.light .copy-btn:hover,
+html.light .copy-code-btn:hover,
+html.light button.bg-slate-800:hover,
+html.light a.bg-slate-800:hover,
+html.light #btnNewProject:hover,
+html.light #btnRefresh:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+html.light .btn-edit *,
+html.light .copy-btn *,
+html.light .copy-code-btn *,
+html.light button.bg-slate-800 *,
+html.light a.bg-slate-800 *,
+html.light #btnNewProject *,
+html.light #btnRefresh * {
+  color: inherit !important;
+}
+
+html.light .btn-edit svg,
+html.light .copy-btn svg,
+html.light .copy-code-btn svg,
+html.light button.bg-slate-800 svg,
+html.light a.bg-slate-800 svg,
+html.light #btnNewProject svg,
+html.light #btnRefresh svg {
+  color: inherit !important;
+  stroke: currentColor;
+}
+
+/* 5. Danger & Delete Buttons */
+html.light .btn-delete,
+html.light #btnLogout,
+html.light #btnDeleteProject,
+html.light [class*="bg-rose-500/"] {
+  background-color: rgba(225, 29, 72, 0.08) !important;
+  color: #e11d48 !important;
+  border: 1px solid rgba(225, 29, 72, 0.25) !important;
+}
+
+html.light .btn-delete:hover,
+html.light #btnLogout:hover,
+html.light #btnDeleteProject:hover,
+html.light [class*="bg-rose-500/"]:hover {
+  background-color: rgba(225, 29, 72, 0.15) !important;
+  color: #be123c !important;
+  border-color: rgba(225, 29, 72, 0.45) !important;
+}
+
+/* 6. Universal Hover Fix: Prevent Elements from Turning White on Hover */
+html.light .hover\:text-white:hover,
+html.light button.hover\:text-white:hover,
+html.light a.hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+html.light .hover\:text-white:hover *,
+html.light button.hover\:text-white:hover *,
+html.light a.hover\:text-white:hover * {
+  color: #0f172a !important;
+}
+
+html.light .hover\:bg-slate-700:hover,
+html.light .hover\:bg-slate-750:hover,
+html.light .hover\:bg-slate-800:hover {
+  background-color: #e2e8f0 !important;
+}
+
+html.light .hover\:bg-white\/10:hover,
+html.light .hover\:bg-white\/\[0\.03\]:hover,
+html.light .hover\:bg-white\/\[0\.04\]:hover,
+html.light .hover\:bg-white\/\[0\.08\]:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 7. Orange Text Accents in Light Mode */
+html.light .text-sky-300,
+html.light .text-sky-400,
+html.light .text-orange-300,
+html.light .text-orange-400 {
+  color: #ea580c !important;
+}
+
+html.light .text-sky-400:hover,
+html.light .text-orange-400:hover,
+html.light .copy-raw-btn:hover,
+html.light .copy-encoded-btn:hover {
+  color: #c2410c !important;
+}
+
+/* 8. Emerald / Green Badges in Light Mode */
+html.light [class*="bg-emerald-500/"],
+html.light .text-emerald-400 {
+  color: #059669 !important;
+}
+html.light [class*="bg-emerald-500/"] {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  border: 1px solid rgba(16, 185, 129, 0.28) !important;
+}
+
+/* 8.1 Mock User Claims Card in Light Mode */
+html.light .user-claims-card {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+html.light .user-claim-badge {
+  background: rgba(234, 91, 0, 0.09) !important;
+  color: #ea580c !important;
+  border: 1px solid rgba(234, 91, 0, 0.22) !important;
+}
+html.light .user-claim-label {
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+html.light .user-claim-val {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+html.light .copy-claim-btn {
+  color: #94a3b8 !important;
+}
+html.light .copy-claim-btn:hover {
+  color: #ea580c !important;
+  background-color: #e2e8f0 !important;
+}
+html.light [class*="bg-indigo-500/"] {
+  background-color: rgba(99, 102, 241, 0.1) !important;
+  color: #4f46e5 !important;
+  border: 1px solid rgba(99, 102, 241, 0.25) !important;
+}
+
+/* 8.2 Live Authorize Request Preview Card in Light Mode */
+html.light .auth-preview-card {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+html.light .auth-preview-title {
+  color: #64748b !important;
+}
+html.light .auth-preview-tag {
+  background: rgba(234, 91, 0, 0.09) !important;
+  color: #ea580c !important;
+  border: 1px solid rgba(234, 91, 0, 0.22) !important;
+}
+html.light .auth-preview-url {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #ea580c !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+html.light .auth-authority-card {
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+}
+html.light .auth-authority-val {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+/* 9. Theme Toggle Button & Navbar Badges */
+html.light #themeToggleBtn {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light #themeToggleBtn:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+/* 10. Modals in Light Mode */
+html.light #projectModal,
+html.light #userModal {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+html.light #projectModal .glass-panel,
+html.light #userModal .glass-panel {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2) !important;
+}
+
+html.light #btnCloseModal,
+html.light #btnCancelModal {
+  color: #64748b !important;
+}
+
+html.light #btnCloseModal:hover,
+html.light #btnCancelModal:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* 11. Alerts & Status Boxes in Light Mode */
+html.light .bg-emerald-950\/60 {
+  background-color: #ecfdf5 !important;
+  border: 1px solid #a7f3d0 !important;
+  color: #065f46 !important;
+}
+html.light .bg-sky-950\/60 {
+  background-color: #fff7ed !important;
+  border: 1px solid #fed7aa !important;
+  color: #9a3412 !important;
+}
+html.light .bg-rose-950\/60 {
+  background-color: #fff1f2 !important;
+  border: 1px solid #fecdd3 !important;
+  color: #9f1239 !important;
+}
+
+/* Code Blocks & Pre styling in Light Mode */
+html.light pre {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+html.light pre code {
+  color: #1e293b !important;
+}
+
+/* Code block title bar in examples.ts */
+html.light .bg-slate-900\/90 {
+  background-color: #f1f5f9 !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+
+html.light .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light button.copy-code-btn {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+html.light button.copy-code-btn:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Prism Light Mode Syntax Tokens */
+html.light .token.comment,
+html.light .token.prolog,
+html.light .token.doctype,
+html.light .token.cdata {
+  color: #64748b !important;
+}
+
+html.light .token.punctuation {
+  color: #475569 !important;
+}
+
+html.light .token.property,
+html.light .token.tag,
+html.light .token.boolean,
+html.light .token.number,
+html.light .token.constant,
+html.light .token.symbol {
+  color: #0284c7 !important;
+}
+
+html.light .token.selector,
+html.light .token.attr-name,
+html.light .token.string,
+html.light .token.char,
+html.light .token.builtin {
+  color: #16a34a !important;
+}
+
+html.light .token.operator,
+html.light .token.entity,
+html.light .token.url {
+  color: #d97706 !important;
+}
+
+html.light .token.atrule,
+html.light .token.attr-value,
+html.light .token.keyword {
+  color: #dc2626 !important;
+}
+
+html.light .token.function,
+html.light .token.class-name {
+  color: #9333ea !important;
+}
+
+html.light .token.regex,
+html.light .token.variable {
+  color: #ea580c !important;
+}
+
+/* Scrollbars in Light Mode */
+html.light ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border: 2px solid #f1f5f9;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Modal and no-scrollbar elements in Light Mode */
+html.light .no-scrollbar::-webkit-scrollbar,
+html.light #userModal .glass-panel::-webkit-scrollbar,
+html.light #projectModal .glass-panel::-webkit-scrollbar,
+html.light [id*="Modal"] .glass-panel::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+html.light .no-scrollbar,
+html.light #userModal .glass-panel,
+html.light #projectModal .glass-panel,
+html.light [id*="Modal"] .glass-panel {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+

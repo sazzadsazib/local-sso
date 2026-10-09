@@ -191,6 +191,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
             name: 'Sazzad Sazib',
             email: 'sazib@gmail.com',
             preferred_username: 'sazib@gmail.com',
+            avatar_url: 'https://avatars.githubusercontent.com/u/8937268?v=4',
             roles: ['Global Administrator', 'User'],
             groups: ['Engineers', 'Admins'],
           },
@@ -199,6 +200,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
             name: 'Iftekhar Rifat',
             email: 'rifat@gmail.com',
             preferred_username: 'rifat@gmail.com',
+            avatar_url: 'https://avatars.githubusercontent.com/u/124599?v=4',
             roles: ['Application Developer', 'User'],
             groups: ['Developers'],
           },
@@ -416,7 +418,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
           </div>
         </div>
 
-        <div class="p-3 bg-slate-950/90 rounded-xl border border-slate-800 font-mono text-xs text-sky-300 break-all select-all">
+        <div class="auth-preview-url p-3 rounded-xl border font-mono text-xs break-all select-all leading-relaxed">
           ${authorizeUrl}
         </div>
       </div>

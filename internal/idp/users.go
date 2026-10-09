@@ -21,6 +21,7 @@ type MockUser struct {
 	TenantID          string                 `json:"tid"`
 	ObjectID          string                 `json:"oid"`
 	SubjectID         string                 `json:"sub"`
+	AvatarURL         string                 `json:"avatar_url,omitempty"`
 	Roles             []string               `json:"roles,omitempty"`
 	Groups            []string               `json:"groups,omitempty"`
 	CustomClaims      map[string]interface{} `json:"custom_claims,omitempty"`
@@ -58,11 +59,13 @@ func NewUserStore() *UserStore {
 		TenantID:          defaultTenant,
 		ObjectID:          "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
 		SubjectID:         "sub-sazzad-sazib-001",
+		AvatarURL:         "https://avatars.githubusercontent.com/u/8937268?v=4",
 		Roles:             []string{"Global Administrator", "User"},
 		Groups:            []string{"Engineers", "Admins"},
 		CustomClaims: map[string]interface{}{
 			"department": "Engineering",
 			"job_title":  "Principal Security Engineer",
+			"picture":    "https://avatars.githubusercontent.com/u/8937268?v=4",
 		},
 	}
 
@@ -76,11 +79,13 @@ func NewUserStore() *UserStore {
 		TenantID:          defaultTenant,
 		ObjectID:          "f6e5d4c3-b2a1-4f5e-9d8c-7b6a5f4e3d2c",
 		SubjectID:         "sub-iftekhar-rifat-002",
+		AvatarURL:         "https://avatars.githubusercontent.com/u/124599?v=4",
 		Roles:             []string{"Application Developer", "User"},
 		Groups:            []string{"Developers"},
 		CustomClaims: map[string]interface{}{
 			"department": "Product Development",
 			"job_title":  "Senior Software Engineer",
+			"picture":    "https://avatars.githubusercontent.com/u/124599?v=4",
 		},
 	}
 

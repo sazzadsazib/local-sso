@@ -10,6 +10,7 @@ import { showToast } from './components/toast';
 import { icon } from './components/icons';
 import { initCardTilt } from './components/tilt';
 import { initCursorGlow } from './components/glow';
+import { getTheme, toggleTheme, applyTheme } from './theme';
 
 const app = document.getElementById('app')!;
 
@@ -165,6 +166,12 @@ async function route() {
 
   const viewContainer = document.getElementById('view-container')!;
 
+  document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+    const next = toggleTheme();
+    showToast(`Switched to ${next} theme`, 'info');
+    route();
+  });
+
    switch (hash) {
      case 'projects':
        renderProjectsView(viewContainer);
@@ -189,6 +196,7 @@ window.addEventListener('hashchange', () => {
 });
 
 // Initial boot
+applyTheme(getTheme());
 route();
 initCardTilt();
 initCursorGlow();

@@ -104,12 +104,22 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    (function() {
+      try {
+        var theme = localStorage.getItem('local-sso-theme');
+        if (theme === 'light') {
+          document.documentElement.classList.add('light');
+        }
+      } catch (e) {}
+    })();
+  </script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #f5f5f5; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; padding: 1.5rem 1rem;
       background-color: #000;
       background-image: radial-gradient(600px circle at 15% -10%, rgba(255,105,0,0.18), transparent 60%), radial-gradient(700px circle at 85% 0%, rgba(255,255,255,0.06), transparent 55%);
-      position: relative; z-index: 0; }
+      position: relative; z-index: 0; transition: background-color 0.2s ease, color 0.2s ease; }
     body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
       background-image: linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px);
       background-size: 56px 56px;
@@ -117,11 +127,16 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
       -webkit-mask-image: radial-gradient(ellipse 100% 70% at 50% 0%, #000 30%, transparent 85%); }
     .card { background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
       backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
-      box-shadow: 0 1px 0 0 rgba(255,255,255,0.06) inset, 0 30px 60px -30px rgba(0,0,0,0.95); max-width: 480px; width: 100%; padding: 2rem; margin: auto 0; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,105,0,0.12); color: #ff9733; border: 1px solid rgba(255,105,0,0.3); padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; margin-bottom: 1rem; }
+      box-shadow: 0 1px 0 0 rgba(255,255,255,0.06) inset, 0 30px 60px -30px rgba(0,0,0,0.95); max-width: 480px; width: 100%; padding: 2rem; margin: auto 0; transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,105,0,0.12); color: #ff9733; border: 1px solid rgba(255,105,0,0.3); padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
     .badge-consent { background: rgba(16, 185, 129, 0.12); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
     .badge-login { background: rgba(14, 165, 233, 0.12); color: #38bdf8; border-color: rgba(14, 165, 233, 0.3); }
     .badge-select { background: rgba(168, 85, 247, 0.12); color: #c084fc; border-color: rgba(168, 85, 247, 0.3); }
+    .theme-toggle { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: #a1a1a1; width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease; padding: 0; }
+    .theme-toggle:hover { background: rgba(255, 255, 255, 0.1); color: #fff; border-color: rgba(255, 255, 255, 0.25); }
+    .theme-toggle .icon-moon { display: none; }
+    .theme-toggle .icon-sun { display: block; }
     h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; margin-bottom: 0.5rem; }
     p.subtitle { color: #a1a1a1; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1.5rem; }
     .consent-box { background: rgba(0, 0, 0, 0.45); border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.08); }
@@ -138,17 +153,24 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
     .request-details summary { cursor: pointer; color: #a1a1a1; font-size: 0.8rem; font-weight: 600; padding: 0.3rem 0; user-select: none; }
     .client-info span.label { color: #737373; }
     .client-info span.val { color: #ebebeb; font-family: "Geist Mono", ui-monospace, monospace; word-break: break-all; text-align: right; max-width: 260px; }
-    .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; color: #737373; margin-bottom: 0.5rem; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+    .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; color: #737373; }
+    .section-hint { font-size: 0.72rem; color: #ff9733; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
     .user-list { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
-    .user-option { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.85rem 1rem; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; }
+    .user-option { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); border: 1px solid transparent; border-radius: 10px; padding: 0.85rem 1rem; cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease; user-select: none; -webkit-user-select: none; }
     .user-option:hover { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.06); }
+    .user-option:active { transform: scale(0.995); }
     .user-option.selected { border-color: #ff6900; background: rgba(255,105,0,0.12); box-shadow: 0 0 0 1px rgba(255,105,0,0.35); }
-    .avatar { width: 36px; height: 36px; border-radius: 50%; background: #ff6900; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; background: #ff6900; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0; overflow: hidden; position: relative; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
     .user-meta { margin-left: 0.75rem; flex: 1; text-align: left; }
     .user-name { font-weight: 600; font-size: 0.9rem; color: #fff; }
     .user-email { color: #a1a1a1; font-size: 0.75rem; }
+    .user-right { display: flex; align-items: center; gap: 8px; }
     .user-role { font-size: 0.7rem; background: rgba(255,255,255,0.08); color: #a1a1a1; padding: 2px 6px; border-radius: 4px; }
-    .btn-submit { width: 100%; background: #fff; color: #000; border: 1px solid rgba(255,255,255,0.9); border-radius: 8px; padding: 0.85rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s; font-family: inherit; }
+    .user-check { display: none; color: #ff6900; line-height: 0; }
+    .user-option.selected .user-check { display: inline-flex; }
+    .btn-submit { width: 100%; background: #fff; color: #000; border: 1px solid rgba(255,255,255,0.9); border-radius: 8px; padding: 0.85rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: background 0.15s, border-color 0.15s, opacity 0.15s; font-family: inherit; }
     .btn-submit:hover { background: #ebebeb; border-color: #ebebeb; }
     .btn-cancel { width: 100%; background: transparent; color: #a1a1a1; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.7rem; font-size: 0.85rem; cursor: pointer; margin-top: 0.5rem; font-family: inherit; transition: background 0.15s, color 0.15s, border-color 0.15s; }
     .btn-cancel:hover { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.2); }
@@ -156,15 +178,197 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
     .credit { margin-top: 1.25rem; padding: 0 0.5rem; width: 100%; font-size: 0.75rem; color: #737373; text-align: center; flex-shrink: 0; }
     .credit a { color: #a1a1a1; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.15); }
     .credit a:hover { color: #ff9733; border-color: rgba(255,105,0,0.5); }
+
+    /* Light Theme overrides */
+    html.light body {
+      background-color: #f8fafc;
+      color: #0f172a;
+      background-image: radial-gradient(600px circle at 15% -10%, rgba(255,105,0,0.12), transparent 60%), radial-gradient(700px circle at 85% 0%, rgba(14,165,233,0.08), transparent 55%);
+    }
+    html.light body::before {
+      background-image: linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
+    }
+    html.light .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px 0 rgba(0,0,0,0.05), 0 20px 40px -15px rgba(0,0,0,0.08);
+    }
+    html.light .theme-toggle {
+      background: #f1f5f9;
+      border-color: #e2e8f0;
+      color: #64748b;
+    }
+    html.light .theme-toggle:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+    html.light .theme-toggle .icon-sun { display: none; }
+    html.light .theme-toggle .icon-moon { display: block; }
+    html.light .badge {
+      background: rgba(255,105,0,0.1);
+      color: #c2410c;
+      border-color: rgba(255,105,0,0.25);
+    }
+    html.light .badge-consent {
+      background: rgba(16, 185, 129, 0.1);
+      color: #047857;
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+    html.light .badge-login {
+      background: rgba(14, 165, 233, 0.1);
+      color: #0369a1;
+      border-color: rgba(14, 165, 233, 0.25);
+    }
+    html.light .badge-select {
+      background: rgba(168, 85, 247, 0.1);
+      color: #7e22ce;
+      border-color: rgba(168, 85, 247, 0.25);
+    }
+    html.light h1 {
+      color: #0f172a;
+    }
+    html.light p.subtitle {
+      color: #64748b;
+    }
+    html.light p.subtitle strong {
+      color: #0f172a !important;
+    }
+    html.light .consent-box {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    html.light .consent-heading {
+      color: #64748b;
+    }
+    html.light .scope-name {
+      color: #0284c7;
+    }
+    html.light .scope-desc {
+      color: #475569;
+    }
+    html.light .client-info {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    html.light .request-details summary {
+      color: #64748b;
+    }
+    html.light .request-details summary:hover {
+      color: #0f172a;
+    }
+    html.light .client-info span.label {
+      color: #64748b;
+    }
+    html.light .client-info span.val {
+      color: #0f172a;
+    }
+    html.light .section-label {
+      color: #64748b;
+    }
+    html.light .section-hint {
+      color: #ea580c;
+    }
+    html.light .user-option {
+      background: #f8fafc;
+      border: 1px solid transparent;
+    }
+    html.light .user-option:hover {
+      border-color: #cbd5e1;
+      background: #f1f5f9;
+    }
+    html.light .user-option.selected {
+      border-color: #ff6900;
+      background: #fff7ed;
+      box-shadow: 0 0 0 1px rgba(255,105,0,0.3);
+    }
+    html.light .user-name {
+      color: #0f172a;
+    }
+    html.light .user-email {
+      color: #64748b;
+    }
+    html.light .user-role {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    html.light .btn-submit {
+      background: #ff6900;
+      color: #ffffff !important;
+      border: 1px solid #ea580c;
+      box-shadow: 0 1px 2px 0 rgba(0,0,0,0.06);
+    }
+    html.light .btn-submit:hover {
+      background: #ea580c;
+      border-color: #c2410c;
+    }
+    html.light .btn-cancel {
+      background: transparent;
+      color: #64748b;
+      border-color: #e2e8f0;
+    }
+    html.light .btn-cancel:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+    html.light .credit {
+      color: #94a3b8;
+    }
+    html.light .credit a {
+      color: #64748b;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    html.light .credit a:hover {
+      color: #ff6900;
+      border-color: #ff6900;
+    }
   </style>
 </head>
 <body>
   <div class="card">
+    <div class="card-header">
+      {{if eq .Prompt "consent"}}
+        <div class="badge badge-consent">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          Permissions Consent &middot; prompt=consent
+        </div>
+      {{else if eq .Prompt "login"}}
+        <div class="badge badge-login">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+          Re-authentication &middot; prompt=login
+        </div>
+      {{else if eq .Prompt "select_account"}}
+        <div class="badge badge-select">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          Account Picker &middot; prompt=select_account
+        </div>
+      {{else}}
+        <div class="badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm0-10h2v8h-2V6z"/></svg>
+          local-sso Mock Entra IdP
+        </div>
+      {{end}}
+
+      <button type="button" class="theme-toggle" id="themeToggleBtn" aria-label="Toggle light or dark theme" title="Toggle theme">
+        <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+    </div>
+
     {{if eq .Prompt "consent"}}
-      <div class="badge badge-consent">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-        Permissions Consent &middot; prompt=consent
-      </div>
       <h1>Permissions Requested</h1>
       <p class="subtitle">The application <strong style="color: #fff;">{{.ClientID}}</strong> is requesting your permission to access these resources:</p>
       
@@ -183,24 +387,12 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
         </div>
       </div>
     {{else if eq .Prompt "login"}}
-      <div class="badge badge-login">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
-        Re-authentication &middot; prompt=login
-      </div>
       <h1>Sign in to your account</h1>
       <p class="subtitle">The application requested fresh sign-in credentials to verify your identity.</p>
     {{else if eq .Prompt "select_account"}}
-      <div class="badge badge-select">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-        Account Picker &middot; prompt=select_account
-      </div>
       <h1>Pick an account</h1>
       <p class="subtitle">Select a mock account to continue to <strong style="color: #fff;">{{.ClientID}}</strong>.</p>
     {{else}}
-      <div class="badge">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm0-10h2v8h-2V6z"/></svg>
-        local-sso Mock Entra IdP
-      </div>
       <h1>Sign in with Microsoft</h1>
       <p class="subtitle">An application is requesting authentication via local OAuth2 / OpenID Connect.</p>
     {{end}}
@@ -228,16 +420,27 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
       <input type="hidden" name="tenant" value="{{.Tenant}}">
       <input type="hidden" name="user_id" id="selectedUserId" value="{{.DefaultUserID}}">
 
-      <p class="section-label">{{if eq .Prompt "consent"}}GRANT ACCESS AS ACCOUNT{{else if eq .Prompt "login"}}CONFIRM ACCOUNT CREDENTIALS{{else}}SELECT IDENTITY{{end}}</p>
+      <div class="section-header">
+        <p class="section-label">{{if eq .Prompt "consent"}}GRANT ACCESS AS ACCOUNT{{else if eq .Prompt "login"}}CONFIRM ACCOUNT CREDENTIALS{{else}}SELECT IDENTITY{{end}}</p>
+        <span class="section-hint" title="Double-click any user card to sign in instantly">Double-click to sign in</span>
+      </div>
+
       <div class="user-list">
         {{range $index, $u := .Users}}
-        <div class="user-option {{if eq $u.ID $.DefaultUserID}}selected{{end}}" onclick="selectUser('{{$u.ID}}', this)">
-          <div class="avatar">{{slice $u.DisplayName 0 1}}</div>
+        <div class="user-option {{if eq $u.ID $.DefaultUserID}}selected{{end}}" onclick="selectUser('{{$u.ID}}', this)" ondblclick="quickSubmitUser('{{$u.ID}}', this)" onkeydown="handleUserKey(event, '{{$u.ID}}', this)" tabindex="0" role="button" title="Click to select, double-click to sign in">
+          <div class="avatar">{{if $u.AvatarURL}}<img src="{{$u.AvatarURL}}" alt="{{$u.DisplayName}}" class="avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';"><span style="display:none;">{{slice $u.DisplayName 0 1}}</span>{{else}}<span>{{slice $u.DisplayName 0 1}}</span>{{end}}</div>
           <div class="user-meta">
             <div class="user-name">{{$u.DisplayName}}</div>
             <div class="user-email">{{$u.Email}}</div>
           </div>
-          {{if $u.Roles}}<span class="user-role">{{index $u.Roles 0}}</span>{{end}}
+          <div class="user-right">
+            {{if $u.Roles}}<span class="user-role">{{index $u.Roles 0}}</span>{{end}}
+            <span class="user-check">
+              <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+            </span>
+          </div>
         </div>
         {{end}}
       </div>
@@ -252,8 +455,35 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
   <script>
     function selectUser(id, el) {
       document.getElementById('selectedUserId').value = id;
-      document.querySelectorAll('.user-option').forEach(o => o.classList.remove('selected'));
+      document.querySelectorAll('.user-option').forEach(function(o) { o.classList.remove('selected'); });
       el.classList.add('selected');
+    }
+    function quickSubmitUser(id, el) {
+      selectUser(id, el);
+      var form = document.getElementById('loginForm');
+      if (form) {
+        form.submit();
+      }
+    }
+    function handleUserKey(e, id, el) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        quickSubmitUser(id, el);
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        selectUser(id, el);
+      }
+    }
+    function toggleTheme() {
+      var html = document.documentElement;
+      var isLight = html.classList.toggle('light');
+      try {
+        localStorage.setItem('local-sso-theme', isLight ? 'light' : 'dark');
+      } catch (e) {}
+    }
+    var themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', toggleTheme);
     }
     function cancelLogin(redirectUri, state, err) {
       if (redirectUri) {
@@ -631,6 +861,9 @@ func (s *Server) HandleUserInfoEndpoint(w http.ResponseWriter, r *http.Request) 
 	}
 	if len(user.Groups) > 0 {
 		userInfo["groups"] = user.Groups
+	}
+	if user.AvatarURL != "" {
+		userInfo["picture"] = user.AvatarURL
 	}
 	for k, v := range user.CustomClaims {
 		userInfo[k] = v

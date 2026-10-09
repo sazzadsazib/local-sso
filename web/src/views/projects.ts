@@ -93,7 +93,7 @@ export function renderProjectsView(container: HTMLElement) {
 function openProjectModal(editProject: Profile | undefined, container: HTMLElement, modalEl: HTMLElement) {
   const isEdit = !!editProject;
   modalEl.innerHTML = `
-    <div class="glass-panel max-w-md w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl space-y-4">
+    <div class="glass-panel max-w-md w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl space-y-4 no-scrollbar">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h2 class="text-lg font-bold text-white">${isEdit ? 'Edit Project' : 'New Project'}</h2>
         <button id="btnCloseModal" class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition" aria-label="Close">${icon('close', 'w-4 h-4')}</button>

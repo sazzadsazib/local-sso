@@ -44,8 +44,15 @@ export async function renderUsersView(container: HTMLElement) {
           <div class="space-y-3">
             <div class="flex items-start justify-between gap-3">
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-12 h-12 shrink-0 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-lg font-bold text-white shadow-md">
-                  ${u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                <div class="w-12 h-12 shrink-0 rounded-xl overflow-hidden relative shadow-md border border-white/10 flex items-center justify-center bg-gradient-to-tr from-sky-500 to-indigo-600">
+                  ${u.avatar_url
+                    ? `<img src="${u.avatar_url}" alt="${u.name}" class="w-full h-full object-cover rounded-xl" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                       <div class="w-full h-full hidden items-center justify-center text-lg font-bold text-white">
+                         ${u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                       </div>`
+                    : `<div class="w-full h-full flex items-center justify-center text-lg font-bold text-white">
+                         ${u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                       </div>`}
                 </div>
                 <div class="min-w-0">
                   <h3 class="text-base font-bold text-white break-words">${u.name}</h3>
@@ -70,11 +77,46 @@ export async function renderUsersView(container: HTMLElement) {
                 .join('')}
             </div>
 
-            <!-- Details -->
-            <div class="space-y-1 text-xs font-mono text-slate-400 bg-slate-950/70 p-3 rounded-xl border border-slate-900">
-              <div class="flex justify-between"><span class="text-slate-500">ObjectID (oid):</span> <span class="text-slate-300 truncate max-w-[160px]">${u.oid}</span></div>
-              <div class="flex justify-between"><span class="text-slate-500">TenantID (tid):</span> <span class="text-slate-300 truncate max-w-[160px]">${u.tid}</span></div>
-              <div class="flex justify-between"><span class="text-slate-500">Subject (sub):</span> <span class="text-slate-300 truncate max-w-[160px]">${u.sub}</span></div>
+            <!-- Details / OIDC Claims -->
+            <div class="user-claims-card rounded-xl border p-3 space-y-2.5 text-xs font-mono">
+              <div class="flex items-center justify-between gap-2 min-w-0">
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <span class="user-claim-badge">oid</span>
+                  <span class="user-claim-label text-[11px]">Object ID</span>
+                </div>
+                <div class="flex items-center gap-1 min-w-0 justify-end">
+                  <span class="user-claim-val truncate select-all font-mono text-[11px]" title="${u.oid}">${u.oid}</span>
+                  <button data-copy="${u.oid}" class="copy-claim-btn shrink-0 p-1 rounded transition cursor-pointer" title="Copy Object ID">
+                    ${icon('copy', 'w-3 h-3')}
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-2 min-w-0">
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <span class="user-claim-badge">tid</span>
+                  <span class="user-claim-label text-[11px]">Tenant ID</span>
+                </div>
+                <div class="flex items-center gap-1 min-w-0 justify-end">
+                  <span class="user-claim-val truncate select-all font-mono text-[11px]" title="${u.tid}">${u.tid}</span>
+                  <button data-copy="${u.tid}" class="copy-claim-btn shrink-0 p-1 rounded transition cursor-pointer" title="Copy Tenant ID">
+                    ${icon('copy', 'w-3 h-3')}
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between gap-2 min-w-0">
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <span class="user-claim-badge">sub</span>
+                  <span class="user-claim-label text-[11px]">Subject</span>
+                </div>
+                <div class="flex items-center gap-1 min-w-0 justify-end">
+                  <span class="user-claim-val truncate select-all font-mono text-[11px]" title="${u.sub}">${u.sub}</span>
+                  <button data-copy="${u.sub}" class="copy-claim-btn shrink-0 p-1 rounded transition cursor-pointer" title="Copy Subject">
+                    ${icon('copy', 'w-3 h-3')}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -92,6 +134,16 @@ export async function renderUsersView(container: HTMLElement) {
       `
         )
         .join('');
+
+      // Wire copy claim buttons
+      document.querySelectorAll('.copy-claim-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const text = btn.getAttribute('data-copy') || '';
+          navigator.clipboard.writeText(text);
+          showToast('Copied claim to clipboard');
+        });
+      });
 
       // Wire edit / delete / quick login
       document.querySelectorAll('.btn-quick-login').forEach((btn) => {
@@ -139,7 +191,7 @@ export async function renderUsersView(container: HTMLElement) {
   function openUserModal(user?: MockUser) {
     const isEdit = !!user;
     userModalEl.innerHTML = `
-      <div class="glass-panel max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl space-y-4">
+      <div class="glass-panel max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl space-y-4 no-scrollbar">
         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
           <h2 class="text-lg font-bold text-white">${isEdit ? 'Edit Mock User' : 'Add New Mock User'}</h2>
           <button id="btnCloseModal" class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition" aria-label="Close">${icon('close', 'w-4 h-4')}</button>
@@ -156,6 +208,11 @@ export async function renderUsersView(container: HTMLElement) {
             <input id="userEmail" type="email" required value="${user?.email || ''}" placeholder="e.g. sazib@gmail.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
           </div>
 
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Avatar Image URL (optional)</label>
+            <input id="userAvatar" type="url" value="${user?.avatar_url || ''}" placeholder="e.g. https://avatars.githubusercontent.com/..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-400 mb-1">Given Name</label>
@@ -167,14 +224,15 @@ export async function renderUsersView(container: HTMLElement) {
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Roles (comma-separated)</label>
-            <input id="userRoles" type="text" value="${(user?.roles || []).join(', ')}" placeholder="e.g. Global Administrator, Developer" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Groups (comma-separated)</label>
-            <input id="userGroups" type="text" value="${(user?.groups || []).join(', ')}" placeholder="e.g. Engineers, Admins" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Roles (comma-separated)</label>
+              <input id="userRoles" type="text" value="${(user?.roles || []).join(', ')}" placeholder="e.g. Global Administrator, Developer" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Groups (comma-separated)</label>
+              <input id="userGroups" type="text" value="${(user?.groups || []).join(', ')}" placeholder="e.g. Engineers, Admins" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            </div>
           </div>
 
           <div class="pt-3 flex justify-end gap-2 border-t border-slate-800">
@@ -196,6 +254,7 @@ export async function renderUsersView(container: HTMLElement) {
       e.preventDefault();
       const name = (document.getElementById('userName') as HTMLInputElement).value;
       const email = (document.getElementById('userEmail') as HTMLInputElement).value;
+      const avatarUrl = (document.getElementById('userAvatar') as HTMLInputElement).value.trim();
       const givenName = (document.getElementById('userGivenName') as HTMLInputElement).value;
       const familyName = (document.getElementById('userFamilyName') as HTMLInputElement).value;
       const rolesStr = (document.getElementById('userRoles') as HTMLInputElement).value;
@@ -210,6 +269,7 @@ export async function renderUsersView(container: HTMLElement) {
         preferred_username: email,
         given_name: givenName,
         family_name: familyName,
+        avatar_url: avatarUrl,
         roles,
         groups,
       };

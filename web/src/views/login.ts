@@ -110,12 +110,19 @@ export async function renderLoginView(container: HTMLElement) {
               </div>
 
               <!-- Live Authorize URL Preview -->
-              <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400 space-y-1">
-                <div class="text-[10px] uppercase font-bold tracking-wider text-slate-500 flex items-center justify-between">
-                  <span>Authorize Request Preview</span>
-                  <span id="previewPromptTag" class="text-sky-400 font-semibold lowercase">prompt=select_account</span>
+              <div class="auth-preview-card p-3 rounded-xl border space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="auth-preview-title flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider">
+                    ${icon('zap', 'w-3 h-3 text-orange-500')} Authorize Request Preview
+                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <span id="previewPromptTag" class="auth-preview-tag font-mono text-[10px] font-semibold lowercase">prompt=select_account</span>
+                    <button id="btnCopyAuthUrl" type="button" class="copy-claim-btn p-1 rounded transition cursor-pointer" title="Copy Authorize URL">
+                      ${icon('copy', 'w-3 h-3')}
+                    </button>
+                  </div>
                 </div>
-                <div id="liveAuthUrlPreview" class="text-sky-300 break-all select-all font-mono leading-relaxed text-[11px]">
+                <div id="liveAuthUrlPreview" class="auth-preview-url break-all select-all font-mono leading-relaxed text-[11px] p-2.5 rounded-lg border">
                   /${tenant}/oauth2/v2.0/authorize?prompt=select_account
                 </div>
               </div>
@@ -154,9 +161,9 @@ export async function renderLoginView(container: HTMLElement) {
               </ol>
             </div>
 
-            <div class="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400">
-              <span class="flex items-center gap-1.5 text-emerald-400 font-semibold mb-0.5">${icon('check-circle', 'w-3.5 h-3.5')} Target Authority</span>
-              <span class="text-slate-300 truncate block">${effectiveOrigin}/${tenant}</span>
+            <div class="auth-authority-card p-3 rounded-xl border text-[11px] font-mono">
+              <span class="flex items-center gap-1.5 text-emerald-500 font-semibold mb-0.5">${icon('check-circle', 'w-3.5 h-3.5')} Target Authority</span>
+              <span class="auth-authority-val truncate block font-mono text-[11px] mt-0.5">${effectiveOrigin}/${tenant}</span>
             </div>
           </div>
 
@@ -192,6 +199,14 @@ export async function renderLoginView(container: HTMLElement) {
     promptSelect?.addEventListener('change', updateAuthPreview);
     scopeInput?.addEventListener('input', updateAuthPreview);
     updateAuthPreview();
+
+    document.getElementById('btnCopyAuthUrl')?.addEventListener('click', () => {
+      const urlText = liveAuthUrlPreview?.textContent?.trim() || '';
+      if (urlText) {
+        navigator.clipboard.writeText(urlText);
+        showToast('Copied Authorize URL to clipboard');
+      }
+    });
 
     document.getElementById('btnStartAuth')?.addEventListener('click', async () => {
       const selectedEmail = (document.getElementById('selectTestUser') as HTMLSelectElement).value;
@@ -245,8 +260,15 @@ export async function renderLoginView(container: HTMLElement) {
       <!-- Session Header Card -->
       <div class="glass-panel glass-success p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-center gap-4 min-w-0 flex-1">
-          <div class="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-            ${icon('check', 'w-7 h-7', 2.5)}
+          <div class="w-14 h-14 shrink-0 rounded-2xl overflow-hidden relative shadow-lg shadow-emerald-500/20 border border-emerald-500/30 flex items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-600">
+            ${(decodedId?.payload?.picture || decodedId?.payload?.avatar_url)
+              ? `<img src="${decodedId.payload.picture || decodedId.payload.avatar_url}" alt="${decodedId?.payload?.name || 'User'}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                 <div class="w-full h-full hidden items-center justify-center text-white">
+                   ${icon('check', 'w-7 h-7', 2.5)}
+                 </div>`
+              : `<div class="w-full h-full flex items-center justify-center text-white">
+                   ${icon('check', 'w-7 h-7', 2.5)}
+                 </div>`}
           </div>
           <div>
             <div class="flex flex-wrap items-center gap-2">

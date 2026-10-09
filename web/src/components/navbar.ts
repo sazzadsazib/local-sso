@@ -1,6 +1,8 @@
 import { icon, dot } from './icons';
+import { getTheme } from '../theme';
 
 export function renderNavbar(activeTab: string): string {
+  const currentTheme = getTheme();
   const tabs = [
     { id: 'projects', label: 'Projects', icon: 'folder' as const, hash: '#projects' },
     { id: 'config', label: 'Endpoints & Config', icon: 'settings' as const, hash: '#config' },
@@ -40,7 +42,10 @@ export function renderNavbar(activeTab: string): string {
             .join('')}
         </nav>
 
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+          <button id="themeToggleBtn" type="button" aria-label="Toggle theme" title="Toggle theme (Light / Dark)" class="p-2 rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 hover:text-white transition cursor-pointer flex items-center justify-center">
+            ${currentTheme === 'light' ? icon('moon', 'w-4 h-4 text-amber-500') : icon('sun', 'w-4 h-4 text-amber-400')}
+          </button>
           <div class="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-slate-300 text-xs font-mono">
             <span class="text-emerald-400">${dot('w-1.5 h-1.5')}</span>
             localhost:${window.location.port || '8080'}

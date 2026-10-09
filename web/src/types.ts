@@ -8,6 +8,7 @@ export interface MockUser {
   tid: string;
   oid: string;
   sub: string;
+  avatar_url?: string;
   roles?: string[];
   groups?: string[];
   custom_claims?: Record<string, any>;
