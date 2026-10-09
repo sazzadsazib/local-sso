@@ -5,6 +5,7 @@ export function renderNavbar(activeTab: string): string {
     { id: 'projects', label: 'Projects', icon: 'folder' as const, hash: '#projects' },
     { id: 'config', label: 'Endpoints & Config', icon: 'settings' as const, hash: '#config' },
     { id: 'users', label: 'Mock Users', icon: 'users' as const, hash: '#users' },
+    { id: 'examples', label: 'Integration Guides', icon: 'code' as const, hash: '#examples' },
     { id: 'login', label: 'Test Client', icon: 'rocket' as const, hash: '#login' },
   ];
 

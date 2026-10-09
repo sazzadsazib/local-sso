@@ -2,6 +2,7 @@ import { getActiveProject, getProjects, saveActiveProject, setActiveProjectId, d
 import { Profile } from '../types';
 import { showToast } from '../components/toast';
 import { icon } from '../components/icons';
+import { highlightCode } from '../components/highlight';
 
 export function renderConfigView(container: HTMLElement) {
   const project = getActiveProject();
@@ -70,14 +71,6 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
   -d "refresh_token=REFRESH_TOKEN" \\
   -d "scope=${project.scope}"`;
 
-  function escapeHtml(str: string): string {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
 
   const tokenProxyUrl = `${effectiveOrigin}/api/token`;
   const verifyApiUrl = `${effectiveOrigin}/api/verify`;
@@ -353,7 +346,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                 </span>
                 <button data-copy="${encodeURIComponent(item.requestSample)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Request</button>
               </div>
-              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-200 overflow-x-auto whitespace-pre leading-relaxed">${escapeHtml(item.requestSample)}</pre>
+              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono overflow-x-auto whitespace-pre leading-relaxed"><code class="language-bash">${highlightCode(item.requestSample, 'bash')}</code></pre>
             </div>
 
             <!-- Response -->
@@ -364,7 +357,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                 </span>
                 <button data-copy="${encodeURIComponent(item.responseSample)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Response</button>
               </div>
-              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-x-auto whitespace-pre leading-relaxed">${escapeHtml(item.responseSample)}</pre>
+              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono overflow-x-auto whitespace-pre leading-relaxed"><code class="language-json">${highlightCode(item.responseSample, 'json')}</code></pre>
             </div>
           </div>
         </details>
@@ -525,7 +518,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                 <span>Configure your frontend @azure/msal-browser instance:</span>
                 <button data-copy="${encodeURIComponent(msalSnippet)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Code</button>
               </div>
-              <pre class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono text-emerald-400 overflow-x-auto">${msalSnippet}</pre>
+              <pre class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-typescript">${highlightCode(msalSnippet, 'typescript')}</code></pre>
             </div>
 
             <!-- cURL Box -->
@@ -535,7 +528,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                   <span>1. Exchange Authorization Code for Tokens:</span>
                   <button data-copy="${encodeURIComponent(curlCodeSnippet)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy cURL</button>
                 </div>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono text-amber-300 overflow-x-auto">${curlCodeSnippet}</pre>
+                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlCodeSnippet, 'bash')}</code></pre>
               </div>
 
               <div>
@@ -543,7 +536,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                   <span>2. Refresh Token Grant:</span>
                   <button data-copy="${encodeURIComponent(curlRefreshSnippet)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy cURL</button>
                 </div>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono text-amber-300 overflow-x-auto">${curlRefreshSnippet}</pre>
+                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlRefreshSnippet, 'bash')}</code></pre>
               </div>
             </div>
 

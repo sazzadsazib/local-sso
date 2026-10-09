@@ -3,6 +3,7 @@ import { renderProjectsView } from './views/projects';
 import { renderConfigView } from './views/config';
 import { renderUsersView } from './views/users';
 import { renderLoginView } from './views/login';
+import { renderExamplesView } from './views/examples';
 import { getPKCEState, saveSession, clearPKCEState, saveActiveProject, getActiveProject } from './storage';
 import { exchangeToken } from './api';
 import { showToast } from './components/toast';
@@ -139,7 +140,7 @@ async function route() {
   handleDeepLink();
 
    let hash = window.location.hash.replace(/^#\/?/, '').split('?')[0];
-   if (!hash || (hash !== 'projects' && hash !== 'config' && hash !== 'users' && hash !== 'login')) {
+   if (!hash || (hash !== 'projects' && hash !== 'config' && hash !== 'users' && hash !== 'login' && hash !== 'examples')) {
      hash = 'projects';
      window.location.hash = '#projects';
    }
@@ -176,6 +177,9 @@ async function route() {
        break;
      case 'login':
        await renderLoginView(viewContainer);
+       break;
+     case 'examples':
+       renderExamplesView(viewContainer);
        break;
    }
 }

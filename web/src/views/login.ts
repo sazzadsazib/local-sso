@@ -3,6 +3,7 @@ import { decodeJWT, exchangeToken, verifyIDToken, fetchMockUsers } from '../api'
 import { showToast } from '../components/toast';
 import { icon } from '../components/icons';
 import { PKCEState, MockUser } from '../types';
+import { highlightCode } from '../components/highlight';
 
 async function generatePKCE() {
   const array = new Uint8Array(32);
@@ -315,20 +316,12 @@ export async function renderLoginView(container: HTMLElement) {
             <div class="space-y-3">
               <div>
                 <span class="text-[11px] font-semibold text-slate-400 block mb-1">JOSE Header (RS256):</span>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono text-purple-300 overflow-x-auto">${JSON.stringify(
-                  decodedId.header,
-                  null,
-                  2
-                )}</pre>
+                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono overflow-x-auto"><code class="language-json">${highlightCode(JSON.stringify(decodedId.header, null, 2), 'json')}</code></pre>
               </div>
 
               <div>
                 <span class="text-[11px] font-semibold text-slate-400 block mb-1">Payload (Entra v2.0 Claims):</span>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono text-emerald-300 overflow-x-auto max-h-96">${JSON.stringify(
-                  decodedId.payload,
-                  null,
-                  2
-                )}</pre>
+                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono overflow-x-auto max-h-96"><code class="language-json">${highlightCode(JSON.stringify(decodedId.payload, null, 2), 'json')}</code></pre>
               </div>
             </div>
           `
@@ -351,11 +344,7 @@ export async function renderLoginView(container: HTMLElement) {
             <div class="space-y-3">
               <div>
                 <span class="text-[11px] font-semibold text-slate-400 block mb-1">Access Token Claims (scp & appid):</span>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono text-amber-300 overflow-x-auto">${JSON.stringify(
-                  decodedAccess.payload,
-                  null,
-                  2
-                )}</pre>
+                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono overflow-x-auto"><code class="language-json">${highlightCode(JSON.stringify(decodedAccess.payload, null, 2), 'json')}</code></pre>
               </div>
 
               <div>
@@ -367,7 +356,7 @@ export async function renderLoginView(container: HTMLElement) {
 
               <div>
                 <span class="text-[11px] font-semibold text-slate-400 block mb-1">Test with cURL (Bearer Authorization):</span>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono text-sky-300 overflow-x-auto">${authBearerCurl}</pre>
+                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(authBearerCurl, 'bash')}</code></pre>
               </div>
             </div>
           `
