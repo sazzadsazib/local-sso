@@ -167,6 +167,38 @@ func TestUserStore(t *testing.T) {
 	}
 }
 
+func TestUpdatePreservesIdentityClaims(t *testing.T) {
+	store := idp.NewUserStore()
+
+	original, ok := store.Get("user-1")
+	if !ok {
+		t.Fatalf("expected seeded user-1 to exist")
+	}
+
+	partial := idp.MockUser{
+		DisplayName: "Renamed Person",
+		Email:       "renamed@example.com",
+	}
+
+	updated, err := store.Update(original.ID, partial)
+	if err != nil {
+		t.Fatalf("update failed: %v", err)
+	}
+
+	if updated.TenantID != original.TenantID {
+		t.Errorf("tid lost on update: got %q want %q", updated.TenantID, original.TenantID)
+	}
+	if updated.ObjectID != original.ObjectID {
+		t.Errorf("oid lost on update: got %q want %q", updated.ObjectID, original.ObjectID)
+	}
+	if updated.SubjectID != original.SubjectID {
+		t.Errorf("sub lost on update: got %q want %q", updated.SubjectID, original.SubjectID)
+	}
+	if updated.DisplayName != "Renamed Person" {
+		t.Errorf("expected display name to be updated, got %q", updated.DisplayName)
+	}
+}
+
 func TestCodeStorePKCE(t *testing.T) {
 	cs := idp.NewCodeStore()
 	user := idp.MockUser{ID: "u1", DisplayName: "U1"}

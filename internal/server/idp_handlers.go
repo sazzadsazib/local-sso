@@ -174,6 +174,13 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
     .btn-submit:hover { background: #ebebeb; border-color: #ebebeb; }
     .btn-cancel { width: 100%; background: transparent; color: #a1a1a1; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.7rem; font-size: 0.85rem; cursor: pointer; margin-top: 0.5rem; font-family: inherit; transition: background 0.15s, color 0.15s, border-color 0.15s; }
     .btn-cancel:hover { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.2); }
+    .btn-submit:disabled, .btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+    .loading-overlay { position: fixed; inset: 0; z-index: 50; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 0.85rem; background: rgba(0,0,0,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+    .loading-overlay.active { display: flex; }
+    .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: #ff6900; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: #f5f5f5; font-size: 0.95rem; font-weight: 600; }
+    .loading-sub { color: #a1a1a1; font-size: 0.78rem; }
     ::selection { background: #ff6900; color: #fff; }
     .credit { margin-top: 1.25rem; padding: 0 0.5rem; width: 100%; font-size: 0.75rem; color: #737373; text-align: center; flex-shrink: 0; }
     .credit a { color: #a1a1a1; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.15); }
@@ -450,18 +457,40 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
     </form>
   </div>
 
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Signing you in&hellip;</div>
+    <div class="loading-sub">Redirecting to the application</div>
+  </div>
+
   <p class="credit">Developed by <a href="https://github.com/sazzadsazib" target="_blank" rel="noopener noreferrer">Sazzad Sazib &middot; @sazzadsazib</a></p>
 
   <script>
+    var submitting = false;
+    function showLoading() {
+      if (submitting) return;
+      submitting = true;
+      document.querySelectorAll('.user-option, .btn-submit, .btn-cancel').forEach(function (el) {
+        el.style.pointerEvents = 'none';
+      });
+      document.querySelectorAll('.btn-submit, .btn-cancel').forEach(function (el) {
+        el.disabled = true;
+      });
+      var overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.classList.add('active');
+    }
     function selectUser(id, el) {
+      if (submitting) return;
       document.getElementById('selectedUserId').value = id;
       document.querySelectorAll('.user-option').forEach(function(o) { o.classList.remove('selected'); });
       el.classList.add('selected');
     }
     function quickSubmitUser(id, el) {
+      if (submitting) return;
       selectUser(id, el);
       var form = document.getElementById('loginForm');
       if (form) {
+        showLoading();
         form.submit();
       }
     }
@@ -485,6 +514,10 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
     if (themeBtn) {
       themeBtn.addEventListener('click', toggleTheme);
     }
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+      if (submitting) { e.preventDefault(); return; }
+      showLoading();
+    });
     function cancelLogin(redirectUri, state, err) {
       if (redirectUri) {
         var sep = redirectUri.indexOf('?') >= 0 ? '&' : '?';

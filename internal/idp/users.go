@@ -163,10 +163,22 @@ func (s *UserStore) Update(id string, user MockUser) (MockUser, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.users[id]; !ok {
+	existing, ok := s.users[id]
+	if !ok {
 		return MockUser{}, errors.New("user not found")
 	}
 	user.ID = id
+	// Identity claims are not editable; preserve them when the caller omits
+	// them so a partial update cannot wipe tid/oid/sub.
+	if user.TenantID == "" {
+		user.TenantID = existing.TenantID
+	}
+	if user.ObjectID == "" {
+		user.ObjectID = existing.ObjectID
+	}
+	if user.SubjectID == "" {
+		user.SubjectID = existing.SubjectID
+	}
 	s.users[id] = user
 	return user, nil
 }
