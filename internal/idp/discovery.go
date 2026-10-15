@@ -32,7 +32,7 @@ func GenerateDiscoveryFromOrigin(origin, tenant, issuerMode string) OpenIDConfig
 	origin = strings.TrimRight(origin, "/")
 	base := fmt.Sprintf("%s/%s", origin, tenant)
 
-	issuer := fmt.Sprintf("%s/%s/v2.0", origin, tenant)
+	issuer := fmt.Sprintf("%s/%s/oauth2/v2.0", origin, tenant)
 	if issuerMode == "entra" {
 		issuer = fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
 	}

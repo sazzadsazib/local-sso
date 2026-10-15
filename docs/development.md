@@ -27,7 +27,7 @@ To make local development and test automation as seamless as possible, `local-ss
 
 | Endpoint | Protocol Standard | Entra ID v2.0 Native? | Purpose |
 |---|---|---|---|
-| `/{tenant}/v2.0/.well-known/openid-configuration` | RFC 8414 / OIDC Core | ✅ Yes | Dynamic OpenID Connect Discovery metadata |
+| `/{tenant}/oauth2/v2.0/.well-known/openid-configuration` | RFC 8414 / OIDC Core | ✅ Yes | Dynamic OpenID Connect Discovery metadata |
 | `/{tenant}/discovery/v2.0/keys` | RFC 7517 (JWKS) | ✅ Yes | Public RSA-2048 signing keys for RS256 token verification |
 | `/{tenant}/oauth2/v2.0/authorize` | RFC 6749 / Entra v2.0 | ✅ Yes | Interactive mock sign-in / authorization code prompt |
 | `/{tenant}/oauth2/v2.0/token` | RFC 6749 / RFC 7636 | ✅ Yes | Authorization Code + PKCE (S256) and Refresh Token exchange |
@@ -89,7 +89,7 @@ To make local development and test automation as seamless as possible, `local-ss
   {
     "id_token": "eyJhbGciOiJSUzI1NiIs...",
     "jwks_uri": "http://localhost:8080/common/discovery/v2.0/keys",
-    "issuer": "http://localhost:8080/common/v2.0",
+    "issuer": "http://localhost:8080/common/oauth2/v2.0",
     "audience": "00000000-0000-0000-0000-000000000001"
   }
   ```
@@ -99,7 +99,7 @@ To make local development and test automation as seamless as possible, `local-ss
     "verified": true,
     "claims": {
       "aud": "00000000-0000-0000-0000-000000000001",
-      "iss": "http://localhost:8080/common/v2.0",
+      "iss": "http://localhost:8080/common/oauth2/v2.0",
       "sub": "00000000-0000-0000-0000-000000000001",
       "email": "sazib@gmail.com",
       "name": "Sazzad Sazib",
@@ -179,7 +179,7 @@ local-sso/
 │       ├── api_users.go        # /api/users CRUD endpoints
 │       ├── callback.go         # /callback receiver for built-in test client
 │       ├── idp_authorize.go    # /{tenant}/oauth2/v2.0/authorize endpoint & HTML login UI
-│       ├── idp_discovery.go    # /{tenant}/v2.0/.well-known/openid-configuration endpoint
+│       ├── idp_discovery.go    # /{tenant}/oauth2/v2.0/.well-known/openid-configuration endpoint
 │       ├── idp_keys.go         # /{tenant}/discovery/v2.0/keys (JWKS) endpoint
 │       ├── idp_logout.go       # /{tenant}/oauth2/v2.0/logout endpoint
 │       ├── idp_token.go        # /{tenant}/oauth2/v2.0/token exchange endpoint

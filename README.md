@@ -83,7 +83,7 @@ graph TD
         end
 
         subgraph MockIdP ["Go Mock Entra ID (OIDC Engine)"]
-            Discovery["OIDC Discovery<br/>/{tenant}/v2.0/.well-known/openid-configuration"]
+            Discovery["OIDC Discovery<br/>/{tenant}/oauth2/v2.0/.well-known/openid-configuration"]
             Authorize["Authorize Endpoint & Login Prompt<br/>/{tenant}/oauth2/v2.0/authorize"]
             TokenExchange["Token Exchange & PKCE<br/>/{tenant}/oauth2/v2.0/token"]
             JWKS["JWKS Public Keys (RS256)<br/>/{tenant}/discovery/v2.0/keys"]
@@ -358,7 +358,7 @@ These endpoints strictly match the request and response shapes of Microsoft Entr
 
 | Endpoint | Method | Entra Standard | Description |
 |---|---|---|---|
-| `/{tenant}/v2.0/.well-known/openid-configuration` | `GET` | ✅ Entra Standard | OpenID Connect Discovery document |
+| `/{tenant}/oauth2/v2.0/.well-known/openid-configuration` | `GET` | ✅ Entra Standard | OpenID Connect Discovery document |
 | `/{tenant}/discovery/v2.0/keys` | `GET` | ✅ Entra Standard | JWKS endpoint exposing active RSA-2048 public keys |
 | `/{tenant}/oauth2/v2.0/authorize` | `GET` | ✅ Entra Standard | Interactive Mock Sign-in / Authorization Code prompt |
 | `/{tenant}/oauth2/v2.0/token` | `POST` | ✅ Entra Standard | Authorization Code + PKCE and Refresh Token exchange |

@@ -16,7 +16,7 @@ Everything you need for this task lives behind a single origin:
 
 | What | URL (dev via `./run.sh`, port `8080`) |
 |---|---|
-| OIDC discovery | `http://localhost:8080/{tenant}/v2.0/.well-known/openid-configuration` |
+| OIDC discovery | `http://localhost:8080/{tenant}/oauth2/v2.0/.well-known/openid-configuration` |
 | Authorize | `http://localhost:8080/{tenant}/oauth2/v2.0/authorize` |
 | Token | `http://localhost:8080/{tenant}/oauth2/v2.0/token` |
 | Logout | `http://localhost:8080/{tenant}/oauth2/v2.0/logout` |
@@ -87,7 +87,7 @@ Pick the ports up front so `redirect_uri` strings are byte-identical everywhere 
 | Better Auth base URL | — | `http://localhost:3000` |
 | Authorize URL | — | `http://localhost:8080/common/oauth2/v2.0/authorize` |
 | Token URL | — | `http://localhost:8080/common/oauth2/v2.0/token` |
-| Discovery URL | — | `http://localhost:8080/common/v2.0/.well-known/openid-configuration` |
+| Discovery URL | — | `http://localhost:8080/common/oauth2/v2.0/.well-known/openid-configuration` |
 | JWKS URI | — | `http://localhost:8080/common/discovery/v2.0/keys` |
 | OAuth callback URI (provider) | — | `http://localhost:3000/api/auth/callback/local-sso` |
 | Client ID | `00000000-0000-0000-0000-000000000001` | same |
@@ -120,7 +120,7 @@ export const auth = betterAuth({
           providerId: "local-sso",
           clientId: "00000000-0000-0000-0000-000000000001",
           clientSecret: "mock-secret", // ignored by local-sso, required for confidential-client token auth
-          discoveryUrl: "http://localhost:8080/common/v2.0/.well-known/openid-configuration",
+          discoveryUrl: "http://localhost:8080/common/oauth2/v2.0/.well-known/openid-configuration",
           redirectURI: "http://localhost:3000/api/auth/callback/local-sso",
           scopes: ["openid", "profile", "email"],
           // pkce defaults to true; local-sso requires it. Leave it on.
@@ -136,7 +136,7 @@ export const auth = betterAuth({
 **What to check after wiring the config:**
 
 1. Better Auth fetches the discovery document at startup. Confirm it parses local-sso's document: it advertises `issuer`, `authorization_endpoint`, `token_endpoint`, `jwks_uri`, `end_session_endpoint`, `code_challenge_methods_supported: ["S256","plain"]`, and `id_token_signing_alg_values_supported: ["RS256"]`. local-sso's document omits `userinfo_endpoint` — that's fine, Generic OAuth reads profile from the verified `id_token` (and falls back to `/api/verify`-style claims), it does not require userinfo.
-2. If Better Auth's ID-token validation compares `iss` strictly against the discovery issuer, note local-sso issues `iss=https://login.microsoftonline.com/common/v2.0` while its discovery doc publishes the same value — match is exact.
+2. If Better Auth's ID-token validation compares `iss` strictly against the discovery issuer, note local-sso issues `iss=https://login.microsoftonline.com/common/oauth2/v2.0` while its discovery doc publishes the same value — match is exact.
 
 ### Fallback: explicit endpoints (no discovery)
 
@@ -225,7 +225,7 @@ ID-token claims (what Better Auth receives):
 
 ```json
 {
-  "iss": "https://login.microsoftonline.com/common/v2.0",
+  "iss": "https://login.microsoftonline.com/common/oauth2/v2.0",
   "sub": "sub-alex-wilber-001",
   "aud": "00000000-0000-0000-0000-000000000001",
   "exp": 1770000000, "nbf": 1769996400, "iat": 1769996400,
@@ -268,8 +268,8 @@ ID-token claims (what Better Auth receives):
 ./run.sh                                    # then open http://localhost:8080/#config
 
 # 2. Discovery parses
-curl -s http://localhost:8080/common/v2.0/.well-known/openid-configuration | jq .issuer
-# -> "https://login.microsoftonline.com/common/v2.0"
+curl -s http://localhost:8080/common/oauth2/v2.0/.well-known/openid-configuration | jq .issuer
+# -> "https://login.microsoftonline.com/common/oauth2/v2.0"
 
 # 3. JWKS reachable
 curl -s http://localhost:8080/common/discovery/v2.0/keys | jq '.keys[0].alg'
@@ -323,7 +323,7 @@ curl -s -X POST http://localhost:8080/common/oauth2/v2.0/token \
 
 | local-sso endpoint | Method | Behaviour |
 |---|---|---|
-| `/{tenant}/v2.0/.well-known/openid-configuration` | GET | OIDC metadata; issuer is the fake `https://login.microsoftonline.com/{tenant}/v2.0`; endpoints are local |
+| `/{tenant}/oauth2/v2.0/.well-known/openid-configuration` | GET | OIDC metadata; issuer is the fake `https://login.microsoftonline.com/{tenant}/v2.0`; endpoints are local |
 | `/{tenant}/discovery/v2.0/keys` | GET | Local RS256 JWKS |
 | `/{tenant}/oauth2/v2.0/authorize` | GET | Interactive mock picker; `prompt=none` + `login_hint` auto-auths |
 | `/{tenant}/oauth2/v2.0/token` | POST | `authorization_code` (PKCE-validated) or `refresh_token` grant; returns RS256 JWTs |

@@ -772,7 +772,7 @@ func (s *Server) HandleTokenEndpoint(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		issuer := fmt.Sprintf("%s/%s/v2.0", s.requestOrigin(r), tenant)
+		issuer := fmt.Sprintf("%s/%s/oauth2/v2.0", s.requestOrigin(r), tenant)
 		if s.resolveIssuerMode(r) == "entra" {
 			issuer = fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
 		}
@@ -811,7 +811,7 @@ func (s *Server) HandleTokenEndpoint(w http.ResponseWriter, r *http.Request) {
 		if scope == "" {
 			scope = "openid profile email offline_access"
 		}
-		issuer := fmt.Sprintf("%s/%s/v2.0", s.requestOrigin(r), tenant)
+		issuer := fmt.Sprintf("%s/%s/oauth2/v2.0", s.requestOrigin(r), tenant)
 		if s.resolveIssuerMode(r) == "entra" {
 			issuer = fmt.Sprintf("https://login.microsoftonline.com/%s/v2.0", tenant)
 		}

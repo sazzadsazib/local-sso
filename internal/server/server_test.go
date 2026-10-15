@@ -143,7 +143,7 @@ func TestOIDCDiscoveryAndJWKS(t *testing.T) {
 		t.Errorf("unexpected authorize endpoint: %s", disc.AuthorizationEndpoint)
 	}
 
-	if disc.Issuer != "http://example.com/mytenant/v2.0" {
+	if disc.Issuer != "http://example.com/mytenant/oauth2/v2.0" {
 		t.Errorf("unexpected discovery issuer: %s", disc.Issuer)
 	}
 
@@ -178,7 +178,7 @@ func TestReverseProxyAndNgrokHeaders(t *testing.T) {
 		t.Fatalf("unmarshal discovery: %v", err)
 	}
 
-	expectedIssuer := "https://tunnel-123.ngrok-free.app/test-tenant/v2.0"
+	expectedIssuer := "https://tunnel-123.ngrok-free.app/test-tenant/oauth2/v2.0"
 	if disc.Issuer != expectedIssuer {
 		t.Errorf("expected issuer %q, got %q", expectedIssuer, disc.Issuer)
 	}

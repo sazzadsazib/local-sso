@@ -4,7 +4,9 @@ import { showToast } from '../components/toast';
 import { icon } from '../components/icons';
 import { highlightCode } from '../components/highlight';
 
-export function renderConfigView(container: HTMLElement) {
+type ConfigTab = 'settings' | 'endpoints';
+
+export function renderConfigView(container: HTMLElement, activeTab: ConfigTab = 'settings') {
   const project = getActiveProject();
   const projects = getProjects();
   const effectiveOrigin = (project.host && project.host.trim())
@@ -15,10 +17,10 @@ export function renderConfigView(container: HTMLElement) {
   const issuerMode = project.issuerMode || 'host';
   const issuerUrl = issuerMode === 'entra'
     ? `https://login.microsoftonline.com/${tenant}/v2.0`
-    : `${effectiveOrigin}/${tenant}/v2.0`;
+    : `${effectiveOrigin}/${tenant}/oauth2/v2.0`;
 
   const authorityUrl = `${effectiveOrigin}/${tenant}`;
-  const discoveryUrl = `${effectiveOrigin}/${tenant}/v2.0/.well-known/openid-configuration`;
+  const discoveryUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/.well-known/openid-configuration`;
   const authorizeUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
     project.clientId
   )}&response_type=code&redirect_uri=${encodeURIComponent(
@@ -37,6 +39,8 @@ export function renderConfigView(container: HTMLElement) {
   try {
     knownHost = new URL(effectiveOrigin).host;
   } catch {}
+
+  const clientSecret = project.clientSecret || '';
 
   const msalSnippet = `// @azure/msal-browser / React MSAL configuration for local dev
 import { PublicClientApplication } from "@azure/msal-browser";
@@ -59,6 +63,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
   const curlCodeSnippet = `curl -X POST "${tokenUrl}" \\
   -H "Content-Type: application/x-www-form-urlencoded" \\
   -d "client_id=${project.clientId}" \\
+  -d "client_secret=${clientSecret}" \\
   -d "grant_type=authorization_code" \\
   -d "code=AUTHORIZATION_CODE" \\
   -d "code_verifier=PKCE_CODE_VERIFIER" \\
@@ -67,6 +72,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
   const curlRefreshSnippet = `curl -X POST "${tokenUrl}" \\
   -H "Content-Type: application/x-www-form-urlencoded" \\
   -d "client_id=${project.clientId}" \\
+  -d "client_secret=${clientSecret}" \\
   -d "grant_type=refresh_token" \\
   -d "refresh_token=REFRESH_TOKEN" \\
   -d "scope=${project.scope}"`;
@@ -92,7 +98,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       url: tokenUrl,
       isCustomMock: false,
       description: 'Standard Entra v2.0: Redeems authorization code + PKCE verifier or refresh token for RS256 ID & Access tokens.',
-      requestSample: `POST /${tenant}/oauth2/v2.0/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code\n&client_id=${project.clientId}\n&code=mock_code_8f2b1d9c\n&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\n&redirect_uri=${encodeURIComponent(project.redirectUri)}`,
+      requestSample: `POST /${tenant}/oauth2/v2.0/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code\n&client_id=${project.clientId}\n&client_secret=${clientSecret}\n&code=mock_code_8f2b1d9c\n&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\n&redirect_uri=${encodeURIComponent(project.redirectUri)}`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
         {
@@ -141,7 +147,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       url: tokenProxyUrl,
       isCustomMock: true,
       description: 'Non-standard Entra helper: CORS-friendly JSON token exchange endpoint for browser SPAs and test scripts to exchange codes without cross-origin issues.',
-      requestSample: `POST /api/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/json\n\n{\n  "token_url": "${tokenUrl}",\n  "client_id": "${project.clientId}",\n  "code": "mock_code_8f2b1d9c",\n  "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",\n  "redirect_uri": "${project.redirectUri}"\n}`,
+      requestSample: `POST /api/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/json\n\n{\n  "token_url": "${tokenUrl}",\n  "client_id": "${project.clientId}",\n  "client_secret": "${clientSecret}",\n  "code": "mock_code_8f2b1d9c",\n  "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",\n  "redirect_uri": "${project.redirectUri}"\n}`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
         {
@@ -215,7 +221,7 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       url: discoveryUrl,
       isCustomMock: false,
       description: 'Standard Entra v2.0: Auto-discovery configuration document (.well-known) used by OIDC libraries (NextAuth, Better Auth, Supabase, Spring Boot).',
-      requestSample: `GET /${tenant}/v2.0/.well-known/openid-configuration HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
+      requestSample: `GET /${tenant}/oauth2/v2.0/.well-known/openid-configuration HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
       responseStatus: '200 OK (application/json)',
       responseSample: JSON.stringify(
         {
@@ -346,7 +352,9 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                 <span class="font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1">
                   ${icon('zap', 'w-3 h-3 text-sky-400')} Request Sample
                 </span>
-                <button data-copy="${encodeURIComponent(item.requestSample)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Request</button>
+                <button data-copy="${encodeURIComponent(item.requestSample)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
+                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy Request</span>
+                </button>
               </div>
               <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono overflow-x-auto whitespace-pre leading-relaxed"><code class="language-bash">${highlightCode(item.requestSample, 'bash')}</code></pre>
             </div>
@@ -357,7 +365,9 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
                 <span class="font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
                   ${icon('check-circle', 'w-3 h-3 text-emerald-400')} ${item.responseStatus || '200 OK Response'}
                 </span>
-                <button data-copy="${encodeURIComponent(item.responseSample)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Response</button>
+                <button data-copy="${encodeURIComponent(item.responseSample)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
+                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy Response</span>
+                </button>
               </div>
               <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono overflow-x-auto whitespace-pre leading-relaxed"><code class="language-json">${highlightCode(item.responseSample, 'json')}</code></pre>
             </div>
@@ -367,9 +377,275 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
     `;
   }
 
+  const tabBtn = (tab: ConfigTab, label: string, badge?: string) => {
+    const active = activeTab === tab;
+    return `
+      <button data-config-tab="${tab}" class="config-tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+        active
+          ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm shadow-sky-500/10'
+          : 'text-slate-400 hover:text-white border border-transparent hover:bg-white/5'
+      }">
+        ${label}
+        ${badge ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-sky-500/25 text-sky-200' : 'bg-slate-800 text-slate-400'}">${badge}</span>` : ''}
+      </button>
+    `;
+  };
+
+  const settingsPanel = `
+    <!-- Quick Frontend Redirect URL Card -->
+    <div class="tilt-card glass-panel glass-hero p-6 rounded-2xl relative overflow-hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="p-2 rounded-lg bg-sky-500/20 text-sky-400 shrink-0">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div class="min-w-0">
+            <h2 class="text-lg font-bold text-white">Frontend Redirect Authorize URL</h2>
+            <p class="text-xs text-slate-400">Direct your frontend login button/session generator to this URL to trigger Microsoft Entra auth flow</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 shrink-0">
+          <button id="copyAuthorizeUrl" class="copy-action-btn px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold rounded-lg shadow-md shadow-sky-500/20 transition flex items-center gap-2">
+            ${icon('copy', 'w-4 h-4')}<span class="copy-action-label">Copy Authorize URL</span>
+          </button>
+          <a href="${authorizeUrl}" target="_blank" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1">
+            Test Launch ${icon('arrow-up-right', 'w-3.5 h-3.5')}
+          </a>
+        </div>
+      </div>
+
+      <div class="auth-preview-url p-3 rounded-xl border font-mono text-xs break-all select-all leading-relaxed">
+        ${authorizeUrl}
+      </div>
+    </div>
+
+    <!-- Main Config Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
+      <!-- Left: Configuration Form -->
+      <div class="lg:col-span-5 space-y-6">
+        <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5">
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            ${icon('settings', 'w-4 h-4 text-orange-400')} Project SSO Settings
+          </h3>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Name</label>
+              <input id="inputName" type="text" value="${project.name}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Root URL</label>
+              <input id="inputRootUrl" type="text" value="${project.rootUrl || ''}" placeholder="e.g. http://localhost:3000" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+              <p class="mt-1 text-[11px] text-slate-500">Root URL of your frontend application. Used to build authorization links for this project.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">
+                Tenant (Alias or GUID)
+                <span class="text-[10px] text-slate-500 font-normal">("common", "organizations", "consumers", or tenant GUID)</span>
+              </label>
+              <input id="inputTenant" type="text" value="${project.tenant}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Application (Client) ID</label>
+              <input id="inputClientId" type="text" value="${project.clientId}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center gap-1.5">
+                ${icon('lock', 'w-3 h-3 text-amber-400')} Client Secret
+                <span class="text-[10px] text-slate-500 font-normal">(shown in token requests, like Microsoft Entra)</span>
+              </label>
+              <div class="relative">
+                <input id="inputClientSecret" type="password" value="${clientSecret}" placeholder="e.g. local-sso-secret-..." autocomplete="off" spellcheck="false" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl pl-3.5 pr-20 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+                <div class="absolute inset-y-0 right-1.5 flex items-center gap-1">
+                  <button id="btnToggleSecret" type="button" class="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition" aria-label="Toggle secret visibility" title="Show / hide secret">
+                    ${icon('key', 'w-3.5 h-3.5')}
+                  </button>
+                  <button id="btnCopySecret" type="button" class="copy-action-btn p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition" aria-label="Copy secret" title="Copy secret">
+                    ${icon('copy', 'w-3.5 h-3.5')}
+                  </button>
+                </div>
+              </div>
+              <p class="mt-1 text-[11px] text-slate-500">Client secret is echoed in token curl snippets and responses. Mock servers accept any value.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Redirect URI (Frontend Callback)</label>
+              <input id="inputRedirectUri" type="text" value="${project.redirectUri}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
+                <span>Host Origin / Base URL</span>
+                <span class="text-[10px] text-sky-400 font-normal">Active: ${effectiveOrigin}</span>
+              </label>
+              <input id="inputHost" type="text" placeholder="e.g. https://xxxx.ngrok-free.app or ${window.location.origin}" value="${project.host || ''}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+              <p class="mt-1 text-[11px] text-slate-500">Base host origin for endpoints &amp; snippets. Configure with your ngrok HTTPS URL when exposing externally.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
+                <span>OIDC Issuer Format</span>
+                <span class="text-[10px] text-slate-500 font-normal font-mono truncate max-w-[200px]">${issuerUrl}</span>
+              </label>
+              <select id="selectIssuerMode" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                <option value="host" ${issuerMode !== 'entra' ? 'selected' : ''}>Host Origin (${effectiveOrigin}/${tenant}/oauth2/v2.0) [Recommended]</option>
+                <option value="entra" ${issuerMode === 'entra' ? 'selected' : ''}>Microsoft Entra ID (https://login.microsoftonline.com/${tenant}/v2.0)</option>
+              </select>
+              <p class="mt-1 text-[11px] text-slate-500">Specifies the <code class="text-slate-400">iss</code> claim in ID tokens and discovery document.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1.5">OAuth Scopes</label>
+              <input id="inputScope" type="text" value="${project.scope}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            </div>
+          </div>
+
+          <div class="pt-2 flex flex-wrap items-center justify-between gap-2">
+            <button id="btnSaveConfig" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-sky-600/20">
+              Save Changes
+            </button>
+            ${
+              projects.length > 1
+                ? `<button id="btnDeleteProject" class="px-3.5 py-2 text-rose-400 hover:text-rose-300 text-xs font-medium hover:bg-rose-500/10 rounded-lg transition">Delete Project</button>`
+                : ''
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Integration Snippets -->
+      <div class="lg:col-span-7 space-y-6">
+        <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              ${icon('terminal', 'w-4 h-4 text-orange-400')} Frontend &amp; CLI Integration Snippets
+            </h3>
+            <div class="flex gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
+              <button id="tabMsal" class="px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-400 font-medium">MSAL.js</button>
+              <button id="tabCurl" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">cURL</button>
+            </div>
+          </div>
+
+          <!-- MSAL.js Box -->
+          <div id="boxMsal" class="space-y-2">
+            <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400">
+              <span>Configure your frontend @azure/msal-browser instance:</span>
+              <button data-copy="${encodeURIComponent(msalSnippet)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
+                <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy Code</span>
+              </button>
+            </div>
+            <pre class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-typescript">${highlightCode(msalSnippet, 'typescript')}</code></pre>
+          </div>
+
+          <!-- cURL Box -->
+          <div id="boxCurl" class="space-y-4 hidden">
+            <div>
+              <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400 mb-1">
+                <span>1. Exchange Authorization Code for Tokens:</span>
+                <button data-copy="${encodeURIComponent(curlCodeSnippet)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
+                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy cURL</span>
+                </button>
+              </div>
+              <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlCodeSnippet, 'bash')}</code></pre>
+            </div>
+
+            <div>
+              <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400 mb-1">
+                <span>2. Refresh Token Grant:</span>
+                <button data-copy="${encodeURIComponent(curlRefreshSnippet)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
+                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy cURL</span>
+                </button>
+              </div>
+              <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlRefreshSnippet, 'bash')}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-panel p-5 rounded-2xl border border-slate-800/80">
+          <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
+            ${icon('info', 'w-4 h-4 text-sky-400')} Using these settings
+          </h4>
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Copy the Client ID and Client Secret above into your OAuth client. Then open the
+            <button data-config-tab="endpoints" class="config-tab-link text-sky-400 hover:text-sky-300 font-semibold underline underline-offset-2">Endpoints &amp; APIs</button>
+            tab to copy ready-to-use authorize, token, JWKS, and discovery URLs.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  `;
+
+  const endpointsPanel = `
+    <div class="space-y-6">
+      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            ${icon('globe', 'w-4 h-4 text-sky-400')} Standard Microsoft Entra v2.0 Endpoints
+          </h3>
+          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
+            ${standardEndpoints.length} Endpoints
+          </span>
+        </div>
+
+        <p class="text-xs text-slate-400">
+          Standard OpenID Connect and OAuth 2.0 endpoints compliant with the official Microsoft Entra ID v2.0 specification.
+        </p>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 font-sans">
+          ${standardEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
+        </div>
+      </div>
+
+      <!-- Custom for Mock Endpoints -->
+      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5 border border-amber-500/20 shadow-xl shadow-amber-500/5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              ${icon('zap', 'w-4 h-4')}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-base font-bold text-white">Custom Mock Endpoints &amp; Helper APIs</h3>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Custom for Mock (Optional)
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Non-standard extensions provided by local-sso to ease mock integration testing and generic OIDC library compatibility.</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            ${customEndpoints.length} Helper Endpoints
+          </span>
+        </div>
+
+        <div class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-xs text-slate-300 flex items-start gap-3">
+          <div class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+            ${icon('info', 'w-4 h-4')}
+          </div>
+          <div class="space-y-1">
+            <span class="font-semibold text-amber-300 text-xs">Standard Entra vs. Custom for Mock Helpers</span>
+            <p class="text-slate-400 text-[11px] leading-relaxed">
+              Official Microsoft Entra v2.0 does not supply a standard OIDC <code>/userinfo</code> endpoint (it uses Microsoft Graph instead). Generic OIDC clients (such as <strong>Better Auth</strong>, <strong>NextAuth</strong>, <strong>Spring Security</strong>, etc.) often expect a standard UserInfo endpoint or simplified token APIs to function without complex Graph SDK configuration. If your client wants them, you can freely use them; otherwise, stick exclusively to the standard Entra v2.0 endpoints above.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 font-sans">
+          ${customEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
   container.innerHTML = `
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
       <!-- Top Banner / Project Header -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-2xl">
         <div>
@@ -395,230 +671,81 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
         </div>
       </div>
 
-      <!-- Quick Frontend Redirect URL Card -->
-      <div class="tilt-card glass-panel glass-hero p-6 rounded-2xl relative overflow-hidden">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <div class="p-2 rounded-lg bg-sky-500/20 text-sky-400 shrink-0">
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            </div>
-            <div class="min-w-0">
-              <h2 class="text-lg font-bold text-white">Frontend Redirect Authorize URL</h2>
-              <p class="text-xs text-slate-400">Direct your frontend login button/session generator to this URL to trigger Microsoft Entra auth flow</p>
-            </div>
-          </div>
-          <div class="flex flex-wrap gap-2 shrink-0">
-            <button id="copyAuthorizeUrl" class="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold rounded-lg shadow-md shadow-sky-500/20 transition flex items-center gap-2">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-              Copy Authorize URL
-            </button>
-            <a href="${authorizeUrl}" target="_blank" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1">
-              Test Launch ${icon('arrow-up-right', 'w-3.5 h-3.5')}
-            </a>
-          </div>
-        </div>
-
-        <div class="auth-preview-url p-3 rounded-xl border font-mono text-xs break-all select-all leading-relaxed">
-          ${authorizeUrl}
-        </div>
+      <!-- Tabs -->
+      <div class="flex items-center gap-1.5 p-1.5 glass-panel rounded-2xl w-full sm:w-auto sm:inline-flex">
+        ${tabBtn('settings', `${icon('settings', 'w-4 h-4')} Project Settings`)}
+        ${tabBtn('endpoints', `${icon('globe', 'w-4 h-4')} Endpoints &amp; APIs`, String(endpointsList.length))}
       </div>
 
-      <!-- Main Config Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <!-- Left: Configuration Form -->
-        <div class="lg:col-span-5 space-y-6">
-          <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5">
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
-              ${icon('settings', 'w-4 h-4 text-orange-400')} Project SSO Settings
-            </h3>
-
-            <div class="space-y-4">
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Name</label>
-                <input id="inputName" type="text" value="${project.name}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Root URL</label>
-                <input id="inputRootUrl" type="text" value="${project.rootUrl || ''}" placeholder="e.g. http://localhost:3000" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-                <p class="mt-1 text-[11px] text-slate-500">Root URL of your frontend application. Used to build authorization links for this project.</p>
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">
-                  Tenant (Alias or GUID)
-                  <span class="text-[10px] text-slate-500 font-normal">("common", "organizations", "consumers", or tenant GUID)</span>
-                </label>
-                <input id="inputTenant" type="text" value="${project.tenant}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Application (Client) ID</label>
-                <input id="inputClientId" type="text" value="${project.clientId}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">Redirect URI (Frontend Callback)</label>
-                <input id="inputRedirectUri" type="text" value="${project.redirectUri}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
-                  <span>Host Origin / Base URL</span>
-                  <span class="text-[10px] text-sky-400 font-normal">Active: ${effectiveOrigin}</span>
-                </label>
-                <input id="inputHost" type="text" placeholder="e.g. https://xxxx.ngrok-free.app or ${window.location.origin}" value="${project.host || ''}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-                <p class="mt-1 text-[11px] text-slate-500">Base host origin for endpoints &amp; snippets. Configure with your ngrok HTTPS URL when exposing externally.</p>
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
-                  <span>OIDC Issuer Format</span>
-                  <span class="text-[10px] text-slate-500 font-normal font-mono truncate max-w-[200px]">${issuerUrl}</span>
-                </label>
-                <select id="selectIssuerMode" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                  <option value="host" ${issuerMode !== 'entra' ? 'selected' : ''}>Host Origin (${effectiveOrigin}/${tenant}/v2.0) [Recommended]</option>
-                  <option value="entra" ${issuerMode === 'entra' ? 'selected' : ''}>Microsoft Entra ID (https://login.microsoftonline.com/${tenant}/v2.0)</option>
-                </select>
-                <p class="mt-1 text-[11px] text-slate-500">Specifies the <code class="text-slate-400">iss</code> claim in ID tokens and discovery document.</p>
-              </div>
-
-              <div>
-                <label class="block text-xs font-semibold text-slate-400 mb-1.5">OAuth Scopes</label>
-                <input id="inputScope" type="text" value="${project.scope}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-              </div>
-            </div>
-
-            <div class="pt-2 flex flex-wrap items-center justify-between gap-2">
-              <button id="btnSaveConfig" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-sky-600/20">
-                Save Changes
-              </button>
-              ${
-                projects.length > 1
-                  ? `<button id="btnDeleteProject" class="px-3.5 py-2 text-rose-400 hover:text-rose-300 text-xs font-medium hover:bg-rose-500/10 rounded-lg transition">Delete Project</button>`
-                  : ''
-              }
-            </div>
-          </div>
-
-          <!-- Code Snippets Tabs (Moved under Project SSO Settings for height balance) -->
-          <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                ${icon('terminal', 'w-4 h-4 text-orange-400')} Frontend &amp; CLI Integration Snippets
-              </h3>
-              <div class="flex gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
-                <button id="tabMsal" class="px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-400 font-medium">MSAL.js</button>
-                <button id="tabCurl" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">cURL</button>
-              </div>
-            </div>
-
-            <!-- MSAL.js Box -->
-            <div id="boxMsal" class="space-y-2">
-              <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400">
-                <span>Configure your frontend @azure/msal-browser instance:</span>
-                <button data-copy="${encodeURIComponent(msalSnippet)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy Code</button>
-              </div>
-              <pre class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-typescript">${highlightCode(msalSnippet, 'typescript')}</code></pre>
-            </div>
-
-            <!-- cURL Box -->
-            <div id="boxCurl" class="space-y-4 hidden">
-              <div>
-                <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400 mb-1">
-                  <span>1. Exchange Authorization Code for Tokens:</span>
-                  <button data-copy="${encodeURIComponent(curlCodeSnippet)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy cURL</button>
-                </div>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlCodeSnippet, 'bash')}</code></pre>
-              </div>
-
-              <div>
-                <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400 mb-1">
-                  <span>2. Refresh Token Grant:</span>
-                  <button data-copy="${encodeURIComponent(curlRefreshSnippet)}" class="copy-encoded-btn text-sky-400 hover:underline">Copy cURL</button>
-                </div>
-                <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlRefreshSnippet, 'bash')}</code></pre>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-
-        <!-- Right: Standard Entra Endpoints -->
-        <div class="lg:col-span-7 space-y-6">
-          
-          <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                ${icon('globe', 'w-4 h-4 text-sky-400')} Standard Microsoft Entra v2.0 Endpoints
-              </h3>
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                ${standardEndpoints.length} Endpoints
-              </span>
-            </div>
-
-            <p class="text-xs text-slate-400">
-              Standard OpenID Connect and OAuth 2.0 endpoints compliant with the official Microsoft Entra ID v2.0 specification.
-            </p>
-
-            <div class="space-y-3 font-sans">
-              ${standardEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
-            </div>
-          </div>
-
-        </div>
-
+      <!-- Panels -->
+      <div id="panelSettings" class="${activeTab === 'settings' ? '' : 'hidden'} space-y-6">
+        ${settingsPanel}
       </div>
-
-      <!-- Bottom Section: Custom for Mock Endpoints -->
-      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5 border border-amber-500/20 shadow-xl shadow-amber-500/5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2.5">
-            <div class="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              ${icon('zap', 'w-4 h-4')}
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-base font-bold text-white">Custom Mock Endpoints &amp; Helper APIs</h3>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Custom for Mock (Optional)
-                </span>
-              </div>
-              <p class="text-xs text-slate-400 mt-0.5">Non-standard extensions provided by local-sso to ease mock integration testing and generic OIDC library compatibility.</p>
-            </div>
-          </div>
-          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            ${customEndpoints.length} Helper Endpoints
-          </span>
-        </div>
-
-        <!-- Informational Callout regarding why these exist -->
-        <div class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-xs text-slate-300 flex items-start gap-3">
-          <div class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
-            ${icon('info', 'w-4 h-4')}
-          </div>
-          <div class="space-y-1">
-            <span class="font-semibold text-amber-300 text-xs">Standard Entra vs. Custom for Mock Helpers</span>
-            <p class="text-slate-400 text-[11px] leading-relaxed">
-              Official Microsoft Entra v2.0 does not supply a standard OIDC <code>/userinfo</code> endpoint (it uses Microsoft Graph instead). Generic OIDC clients (such as <strong>Better Auth</strong>, <strong>NextAuth</strong>, <strong>Spring Security</strong>, etc.) often expect a standard UserInfo endpoint or simplified token APIs to function without complex Graph SDK configuration. If your client wants them, you can freely use them; otherwise, stick exclusively to the standard Entra v2.0 endpoints above.
-            </p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 font-sans">
-          ${customEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
-        </div>
+      <div id="panelEndpoints" class="${activeTab === 'endpoints' ? '' : 'hidden'}">
+        ${endpointsPanel}
       </div>
 
     </div>
   `;
 
-  // Attach Event Handlers
+  const switchTab = (tab: ConfigTab) => {
+    document.querySelectorAll<HTMLElement>('[data-config-tab]').forEach((el) => {
+      const isActive = el.getAttribute('data-config-tab') === tab;
+      if (el.classList.contains('config-tab-btn')) {
+        el.className = `config-tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+          isActive
+            ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm shadow-sky-500/10'
+            : 'text-slate-400 hover:text-white border border-transparent hover:bg-white/5'
+        }`;
+        const badge = el.querySelector('span');
+        if (badge) {
+          badge.className = `px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-sky-500/25 text-sky-200' : 'bg-slate-800 text-slate-400'}`;
+        }
+      }
+    });
+    document.getElementById('panelSettings')?.classList.toggle('hidden', tab !== 'settings');
+    document.getElementById('panelEndpoints')?.classList.toggle('hidden', tab !== 'endpoints');
+    activeTab = tab;
+  };
+
+  // Flash a "Copied" confirmation on any copy control.
+  const flashCopied = (btn: HTMLElement) => {
+    if (btn.getAttribute('data-copied') === '1') return;
+    btn.setAttribute('data-copied', '1');
+
+    const originalHTML = btn.innerHTML;
+    const labelEl = btn.querySelector<HTMLElement>('.copy-encoded-label, .copy-action-label');
+
+    if (labelEl) {
+      const iconEl = btn.querySelector<SVGElement>('.copy-encoded-icon svg, svg');
+      if (iconEl) iconEl.outerHTML = icon('check', 'w-3.5 h-3.5');
+      labelEl.textContent = 'Copied!';
+      btn.classList.add('text-emerald-400');
+      setTimeout(() => {
+        btn.innerHTML = originalHTML;
+        btn.classList.remove('text-emerald-400');
+        btn.removeAttribute('data-copied');
+      }, 1600);
+      return;
+    }
+
+    // Icon-only controls: swap the glyph for a check mark.
+    btn.innerHTML = icon('check', 'w-3.5 h-3.5');
+    btn.classList.add('text-emerald-400', 'border-emerald-500/40');
+    setTimeout(() => {
+      btn.innerHTML = originalHTML;
+      btn.classList.remove('text-emerald-400', 'border-emerald-500/40');
+      btn.removeAttribute('data-copied');
+    }, 1600);
+  };
+
+  document.querySelectorAll<HTMLElement>('[data-config-tab]').forEach((el) => {
+    el.addEventListener('click', () => switchTab(el.getAttribute('data-config-tab') as ConfigTab));
+  });
+
   document.getElementById('projectSelector')?.addEventListener('change', (e) => {
     setActiveProjectId((e.target as HTMLSelectElement).value);
-    renderConfigView(container);
+    renderConfigView(container, activeTab);
     showToast('Project switched');
   });
 
@@ -630,13 +757,14 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       provider: 'entra',
       tenant: 'common',
       clientId: '00000000-0000-0000-0000-000000000002',
+      clientSecret: 'local-sso-secret-' + Math.random().toString(36).slice(2, 10),
       redirectUri: 'http://localhost:3000/callback',
       scope: 'openid profile email offline_access',
       host: '',
       issuerMode: 'host',
     };
     saveActiveProject(newP);
-    renderConfigView(container);
+    renderConfigView(container, 'settings');
     showToast('Created new project');
   });
 
@@ -647,46 +775,62 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       rootUrl: (document.getElementById('inputRootUrl') as HTMLInputElement).value.trim(),
       tenant: (document.getElementById('inputTenant') as HTMLInputElement).value,
       clientId: (document.getElementById('inputClientId') as HTMLInputElement).value,
+      clientSecret: (document.getElementById('inputClientSecret') as HTMLInputElement).value,
       redirectUri: (document.getElementById('inputRedirectUri') as HTMLInputElement).value,
       scope: (document.getElementById('inputScope') as HTMLInputElement).value,
       host: (document.getElementById('inputHost') as HTMLInputElement).value.trim(),
       issuerMode: (document.getElementById('selectIssuerMode') as HTMLSelectElement).value as 'host' | 'entra',
     };
     saveActiveProject(updated);
-    renderConfigView(container);
+    renderConfigView(container, activeTab);
     showToast('Project saved successfully');
   });
 
   document.getElementById('btnDeleteProject')?.addEventListener('click', () => {
     if (confirm('Delete this project?')) {
       deleteProject(project.id);
-      renderConfigView(container);
+      renderConfigView(container, 'settings');
       showToast('Project deleted');
     }
   });
 
-  document.getElementById('copyAuthorizeUrl')?.addEventListener('click', () => {
+  document.getElementById('btnToggleSecret')?.addEventListener('click', () => {
+    const input = document.getElementById('inputClientSecret') as HTMLInputElement | null;
+    if (input) input.type = input.type === 'password' ? 'text' : 'password';
+  });
+
+  document.getElementById('btnCopySecret')?.addEventListener('click', (e) => {
+    const input = document.getElementById('inputClientSecret') as HTMLInputElement | null;
+    navigator.clipboard.writeText(input?.value || '');
+    flashCopied(e.currentTarget as HTMLElement);
+    showToast('Copied client secret to clipboard');
+  });
+
+  document.getElementById('copyAuthorizeUrl')?.addEventListener('click', (e) => {
     navigator.clipboard.writeText(authorizeUrl);
+    flashCopied(e.currentTarget as HTMLElement);
     showToast('Copied full Authorize URL to clipboard!');
   });
 
-  document.querySelectorAll('.copy-btn').forEach((btn) => {
+  document.querySelectorAll<HTMLElement>('.copy-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const text = btn.getAttribute('data-copy') || '';
       navigator.clipboard.writeText(text);
+      flashCopied(btn);
       showToast('Copied endpoint URL to clipboard!');
     });
   });
 
-  document.querySelectorAll('.copy-encoded-btn').forEach((btn) => {
+  document.querySelectorAll<HTMLElement>('.copy-encoded-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const text = decodeURIComponent(btn.getAttribute('data-copy') || '');
       navigator.clipboard.writeText(text);
+      flashCopied(btn);
       showToast('Copied snippet to clipboard!');
     });
   });
 
-  // Tab switching
+  // Tab switching (snippets)
   const tabMsal = document.getElementById('tabMsal');
   const tabCurl = document.getElementById('tabCurl');
   const boxMsal = document.getElementById('boxMsal');

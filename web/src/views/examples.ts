@@ -18,10 +18,10 @@ export function renderExamplesView(container: HTMLElement) {
   const issuerMode = project.issuerMode || 'host';
   const issuerUrl = issuerMode === 'entra'
     ? `https://login.microsoftonline.com/${tenant}/v2.0`
-    : `${effectiveOrigin}/${tenant}/v2.0`;
+    : `${effectiveOrigin}/${tenant}/oauth2/v2.0`;
 
   const authorityUrl = `${effectiveOrigin}/${tenant}`;
-  const discoveryUrl = `${effectiveOrigin}/${tenant}/v2.0/.well-known/openid-configuration`;
+  const discoveryUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/.well-known/openid-configuration`;
   const authorizeBaseUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize`;
   const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
   const jwksUrl = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
@@ -764,7 +764,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           </div>
           <p class="text-slate-300 leading-relaxed text-[11px]">
             If your JWT validation library fails with <code class="text-rose-400">"jwt issuer invalid"</code>, check your project's <strong>Issuer Mode</strong> in the Endpoints &amp; Config tab.
-            When set to <em>Host Origin</em> (default), local-sso issues tokens with <code class="text-orange-300 font-mono">${effectiveOrigin}/${tenant}/v2.0</code>.
+            When set to <em>Host Origin</em> (default), local-sso issues tokens with <code class="text-orange-300 font-mono">${effectiveOrigin}/${tenant}/oauth2/v2.0</code>.
             If your backend expects official Microsoft Entra tokens, switch Issuer Mode to <em>Entra ID</em> to issue tokens signed with <code class="text-orange-300 font-mono">https://login.microsoftonline.com/${tenant}/v2.0</code>.
           </p>
         </div>

@@ -123,7 +123,7 @@ func main() {
 	fmt.Printf("  -> Mock Users:       http://localhost:%d/#users\n", port)
 	fmt.Printf("  -> Test Client:      http://localhost:%d/#login\n", port)
 	fmt.Println("----------------------------------------------------------------")
-	fmt.Printf("  -> OIDC Discovery:   http://localhost:%d/%s/v2.0/.well-known/openid-configuration\n", port, tenant)
+	fmt.Printf("  -> OIDC Discovery:   http://localhost:%d/%s/oauth2/v2.0/.well-known/openid-configuration\n", port, tenant)
 	fmt.Printf("  -> Authorize URL:    http://localhost:%d/%s/oauth2/v2.0/authorize\n", port, tenant)
 	fmt.Printf("  -> Token URL:        http://localhost:%d/%s/oauth2/v2.0/token\n", port, tenant)
 	fmt.Printf("  -> JWKS Keys URL:    http://localhost:%d/%s/discovery/v2.0/keys\n", port, tenant)

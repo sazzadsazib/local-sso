@@ -41,7 +41,7 @@
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/{tenant}/v2.0/.well-known/openid-configuration` | `GET` | Returns standard OpenID Connect discovery metadata customized for `{tenant}`. |
+| `/{tenant}/oauth2/v2.0/.well-known/openid-configuration` | `GET` | Returns standard OpenID Connect discovery metadata customized for `{tenant}`. |
 | `/{tenant}/discovery/v2.0/keys` | `GET` | Serves public RSA keys formatted in JSON Web Key Set (JWKS) format. |
 | `/{tenant}/oauth2/v2.0/authorize` | `GET` | Serves interactive mock sign-in dialog or auto-authenticates if `login_hint` and `prompt=none` are passed. |
 | `/{tenant}/oauth2/v2.0/token` | `POST` | Exchanges `authorization_code` (with PKCE verification) or `refresh_token`, issuing RS256-signed JWTs. |
@@ -107,7 +107,7 @@ Tokens issued by `local-sso` are signed with an internal **RS256 2048-bit RSA ke
 ### 4.1 Sample ID Token (`id_token`) Payload
 ```json
 {
-  "iss": "https://login.microsoftonline.com/common/v2.0",
+  "iss": "https://login.microsoftonline.com/common/oauth2/v2.0",
   "sub": "sub-alex-wilber-001",
   "aud": "your-client-id",
   "exp": 1728243600,

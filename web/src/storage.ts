@@ -13,6 +13,7 @@ const defaultProjects: Profile[] = [
     provider: 'entra',
     tenant: 'common',
     clientId: '00000000-0000-0000-0000-000000000001',
+    clientSecret: 'local-sso-secret-portal-1',
     redirectUri: 'http://localhost:3000/callback',
     scope: 'openid profile email offline_access',
     prompt: 'select_account',
@@ -26,6 +27,7 @@ const defaultProjects: Profile[] = [
     provider: 'entra',
     tenant: '72f988bf-86f1-41af-91ab-2d7cd011db47',
     clientId: 'client-app-contoso-123',
+    clientSecret: 'local-sso-secret-contoso-1',
     redirectUri: 'http://localhost:8080/callback',
     scope: 'openid profile email offline_access User.Read',
     host: '',
@@ -52,6 +54,13 @@ export function getProjects(): Profile[] {
       if (p2 && p2.name === 'Contoso Enterprise Tenant') {
         p2.name = 'Portal Contoso Enterprise SSO';
         modified = true;
+      }
+      // Backfill a client secret for projects stored before secrets were supported.
+      for (const p of parsed) {
+        if (p && !p.clientSecret) {
+          p.clientSecret = `local-sso-secret-${Math.random().toString(36).slice(2, 10)}`;
+          modified = true;
+        }
       }
       if (modified) {
         saveProjects(parsed);

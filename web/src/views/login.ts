@@ -401,7 +401,7 @@ export async function renderLoginView(container: HTMLElement) {
       const jwksUri = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
       const issuer = project.issuerMode === 'entra'
         ? `https://login.microsoftonline.com/${tenant}/v2.0`
-        : `${effectiveOrigin}/${tenant}/v2.0`;
+        : `${effectiveOrigin}/${tenant}/oauth2/v2.0`;
       const res = await verifyIDToken(session.id_token, jwksUri, issuer, project.clientId);
 
       if (res.verified) {

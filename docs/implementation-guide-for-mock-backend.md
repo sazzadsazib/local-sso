@@ -154,7 +154,7 @@ const data = await fetch('/api/token', {          // same-origin relay, no CORS
 
 ```json
 {
-  "iss": "https://login.microsoftonline.com/common/v2.0",
+  "iss": "https://login.microsoftonline.com/common/oauth2/v2.0",
   "aud": "00000000-0000-0000-0000-000000000001",
   "exp": 1770000000, "iat": 1769996400, "nbf": 1769996400,
   "sub": "sub-alex-wilber-001",
@@ -187,7 +187,7 @@ One-shot server-side check (fetch + validate signature, issuer, audience):
 ```bash
 curl -s -X POST http://localhost:8080/api/verify -H 'Content-Type: application/json' \
   -d '{"id_token":"<ID_TOKEN>","jwks_uri":"http://localhost:8080/common/discovery/v2.0/keys",
-       "issuer":"https://login.microsoftonline.com/common/v2.0","audience":"00000000-0000-0000-0000-000000000001"}'
+       "issuer":"https://login.microsoftonline.com/common/oauth2/v2.0","audience":"00000000-0000-0000-0000-000000000001"}'
 # -> {"verified":true,"claims":{...}}  |  {"verified":false,"reason":"..."}
 ```
 
