@@ -1,10 +1,10 @@
 export type Theme = 'dark' | 'light';
 
-const THEME_STORAGE_KEY = 'local-sso-theme';
+const THEME_STORAGE_KEY = 'local-sso.theme';
 
 export function getTheme(): Theme {
   try {
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    const saved = localStorage.getItem(THEME_STORAGE_KEY) || localStorage.getItem('local-sso-theme');
     if (saved === 'light' || saved === 'dark') {
       return saved;
     }
@@ -14,6 +14,7 @@ export function getTheme(): Theme {
 
 export function applyTheme(theme: Theme) {
   const root = document.documentElement;
+  root.dataset.theme = theme;
   if (theme === 'light') {
     root.classList.remove('dark');
     root.classList.add('light');
@@ -24,13 +25,14 @@ export function applyTheme(theme: Theme) {
 
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#000000');
+    meta.setAttribute('content', theme === 'light' ? '#f8fafc' : '#030305');
   }
 }
 
 export function setTheme(theme: Theme) {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
+    localStorage.setItem('local-sso-theme', theme);
   } catch {}
   applyTheme(theme);
 }

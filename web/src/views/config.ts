@@ -1,112 +1,95 @@
-import { getActiveProject, getProjects, saveActiveProject, setActiveProjectId, deleteProject } from '../storage';
-import { Profile } from '../types';
-import { showToast } from '../components/toast';
+import { getActiveProject, saveActiveProject } from '../storage';
 import { icon } from '../components/icons';
+import { showToast } from '../components/toast';
 import { highlightCode } from '../components/highlight';
+import { Profile } from '../types';
 
-type ConfigTab = 'settings' | 'endpoints';
+function escapeHtml(str: string | undefined): string {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
-export function renderConfigView(container: HTMLElement, activeTab: ConfigTab = 'settings') {
-  const project = getActiveProject();
-  const projects = getProjects();
-  const effectiveOrigin = (project.host && project.host.trim())
-    ? project.host.trim().replace(/\/+$/, '')
-    : window.location.origin;
+function normalizePath(val: string): string {
+  return String(val || '').replace(/\/+$/, '');
+}
 
-  const tenant = project.tenant || 'common';
-  const issuerMode = project.issuerMode || 'host';
-  const issuerUrl = issuerMode === 'entra'
-    ? `https://login.microsoftonline.com/${tenant}/v2.0`
-    : `${effectiveOrigin}/${tenant}/oauth2/v2.0`;
+function getAuthority(project: Profile): string {
+  const base = normalizePath(project.host || window.location.origin);
+  return `${base}/${project.tenant || 'common'}`;
+}
 
-  const authorityUrl = `${effectiveOrigin}/${tenant}`;
-  const discoveryUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/.well-known/openid-configuration`;
-  const authorizeUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
-    project.clientId
-  )}&response_type=code&redirect_uri=${encodeURIComponent(
-    project.redirectUri
-  )}&response_mode=query&scope=${encodeURIComponent(
-    project.scope
-  )}&state=12345&nonce=67890`;
-  const tokenUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/token`;
-  const jwksUrl = `${effectiveOrigin}/${tenant}/discovery/v2.0/keys`;
-  const logoutUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/logout`;
-  const userinfoUrl = `${effectiveOrigin}/${tenant}/oidc/userinfo`;
-  const usersApiUrl = `${effectiveOrigin}/api/users`;
-  const authorizeBaseUrl = `${effectiveOrigin}/${tenant}/oauth2/v2.0/authorize`;
+function getHostName(project: Profile): string {
+  return normalizePath(project.host || window.location.origin).replace(/^https?:\/\//, '');
+}
 
-  let knownHost = window.location.host;
-  try {
-    knownHost = new URL(effectiveOrigin).host;
-  } catch {}
-
-  const clientSecret = project.clientSecret || '';
-
-  const msalSnippet = `// @azure/msal-browser / React MSAL configuration for local dev
-import { PublicClientApplication } from "@azure/msal-browser";
-
-export const msalConfig = {
-  auth: {
-    clientId: "${project.clientId}",
-    authority: "${authorityUrl}",
-    knownAuthorities: ["${knownHost}"],
-    redirectUri: "${project.redirectUri}",
-  },
-  cache: {
-    cacheLocation: "localStorage",
-    storeAuthStateInCookie: false,
+function getIssuerValue(project: Profile): string {
+  if (project.issuerMode === 'entra') {
+    return `https://login.microsoftonline.com/${project.tenant}/v2.0`;
   }
-};
+  return getAuthority(project);
+}
 
-export const msalInstance = new PublicClientApplication(msalConfig);`;
+interface EndpointItem {
+  id: string;
+  name: string;
+  method: string;
+  kind: 'standard' | 'mock';
+  url: string;
+  description: string;
+  request: string;
+  responseLabel: string;
+  response: string;
+}
 
-  const curlCodeSnippet = `curl -X POST "${tokenUrl}" \\
-  -H "Content-Type: application/x-www-form-urlencoded" \\
-  -d "client_id=${project.clientId}" \\
-  -d "client_secret=${clientSecret}" \\
-  -d "grant_type=authorization_code" \\
-  -d "code=AUTHORIZATION_CODE" \\
-  -d "code_verifier=PKCE_CODE_VERIFIER" \\
-  -d "redirect_uri=${project.redirectUri}"`;
+function getEndpointsForProject(project: Profile): EndpointItem[] {
+  const base = getAuthority(project);
+  const host = getHostName(project);
+  const authorize = `${base}/oauth2/v2.0/authorize`;
+  const token = `${base}/oauth2/v2.0/token`;
+  const userinfo = `${base}/oidc/userinfo`;
+  const discovery = `${base}/oauth2/v2.0/.well-known/openid-configuration`;
+  const jwks = `${base}/discovery/v2.0/keys`;
+  const issuer = getIssuerValue(project);
+  const endSession = `${base}/oauth2/v2.0/logout`;
+  const clientId = project.clientId;
+  const redirect = project.redirectUri;
+  const scope = project.scope;
+  const secret = project.clientSecret || 'local-sso-secret';
+  const rootUrl = project.rootUrl || 'http://localhost:3000';
+  const rawOrigin = normalizePath(project.host || window.location.origin);
 
-  const curlRefreshSnippet = `curl -X POST "${tokenUrl}" \\
-  -H "Content-Type: application/x-www-form-urlencoded" \\
-  -d "client_id=${project.clientId}" \\
-  -d "client_secret=${clientSecret}" \\
-  -d "grant_type=refresh_token" \\
-  -d "refresh_token=REFRESH_TOKEN" \\
-  -d "scope=${project.scope}"`;
-
-
-  const tokenProxyUrl = `${effectiveOrigin}/api/token`;
-  const verifyApiUrl = `${effectiveOrigin}/api/verify`;
-
-  const endpointsList = [
+  return [
     {
+      id: 'authorize',
       name: 'OIDC Authorize Endpoint',
-      method: 'GET' as const,
-      url: authorizeBaseUrl,
-      isCustomMock: false,
-      description: 'Standard Entra v2.0: Initiates OAuth2/OIDC sign-in flow and returns an authorization code with PKCE protection.',
-      requestSample: `GET /${tenant}/oauth2/v2.0/authorize?client_id=${project.clientId}&response_type=code&redirect_uri=${encodeURIComponent(project.redirectUri)}&scope=${encodeURIComponent(project.scope)}&response_mode=query&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256&prompt=select_account HTTP/1.1\nHost: ${knownHost}`,
-      responseStatus: '302 Found (Redirect with Code)',
-      responseSample: `HTTP/1.1 302 Found\nLocation: ${project.redirectUri}?code=mock_code_8f2b1d9c&state=xyz123`,
+      method: 'GET',
+      kind: 'standard',
+      url: authorize,
+      description: 'Initiates the OAuth2 / OIDC sign-in flow and returns an authorization code protected by PKCE.',
+      request: `GET /${project.tenant}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirect)}&scope=${encodeURIComponent(scope)}&response_mode=query&state=xyz123&code_challenge=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&code_challenge_method=S256&prompt=select_account HTTP/1.1\nHost: ${host}`,
+      responseLabel: '302 redirect',
+      response: `HTTP/1.1 302 Found\nLocation: ${redirect}?code=mock_code_8f2b1d9c&state=xyz123`,
     },
     {
+      id: 'token',
       name: 'OAuth2 Token Endpoint',
-      method: 'POST' as const,
-      url: tokenUrl,
-      isCustomMock: false,
-      description: 'Standard Entra v2.0: Redeems authorization code + PKCE verifier or refresh token for RS256 ID & Access tokens.',
-      requestSample: `POST /${tenant}/oauth2/v2.0/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code\n&client_id=${project.clientId}\n&client_secret=${clientSecret}\n&code=mock_code_8f2b1d9c\n&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk\n&redirect_uri=${encodeURIComponent(project.redirectUri)}`,
-      responseStatus: '200 OK (application/json)',
-      responseSample: JSON.stringify(
+      method: 'POST',
+      kind: 'standard',
+      url: token,
+      description: 'Redeems an authorization code and PKCE verifier, or a refresh token, for RS256 ID and access tokens.',
+      request: `POST /${project.tenant}/oauth2/v2.0/token HTTP/1.1\nHost: ${host}\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code&client_id=${clientId}&client_secret=${secret}&code=mock_code_8f2b1d9c&code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk&redirect_uri=${encodeURIComponent(redirect)}`,
+      responseLabel: '200 OK',
+      response: JSON.stringify(
         {
           token_type: 'Bearer',
-          scope: project.scope,
+          scope,
           expires_in: 3600,
-          access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzby1sb2NhbC1hY3RpdmUta2V5IiwidHlwIjoiSldUIn0.ey...',
-          id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6InNzby1sb2NhbC1hY3RpdmUta2V5IiwidHlwIjoiSldUIn0.ey...',
+          access_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6ImxvY2FsLXNzby1rZXki... (RS256 JWT)',
+          id_token: 'eyJhbGciOiJSUzI1NiIsImtpZCI6ImxvY2FsLXNzby1rZXki... (RS256 JWT)',
           refresh_token: 'local-sso-refresh-8f2b1d9c4e0a7',
         },
         null,
@@ -114,123 +97,68 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       ),
     },
     {
+      id: 'userinfo',
       name: 'OIDC UserInfo Endpoint',
-      method: 'GET' as const,
-      url: userinfoUrl,
-      isCustomMock: true,
-      description: 'Non-standard Entra extension: Real Microsoft Entra ID omits standard /userinfo (uses Microsoft Graph API). Provided by local-sso for compatibility with generic OIDC libraries (Better Auth, NextAuth, Spring). Use if needed by your client.',
-      requestSample: `GET /${tenant}/oidc/userinfo HTTP/1.1\nHost: ${knownHost}\nAuthorization: Bearer <access_token>`,
-      responseStatus: '200 OK (application/json)',
-      responseSample: JSON.stringify(
+      method: 'GET',
+      kind: 'mock',
+      url: userinfo,
+      description: 'A local helper for generic OIDC clients expecting standard UserInfo JSON. Microsoft Entra ID usually serves this via Microsoft Graph.',
+      request: `GET /${project.tenant}/oidc/userinfo HTTP/1.1\nHost: ${host}\nAuthorization: Bearer <access_token>`,
+      responseLabel: '200 OK',
+      response: JSON.stringify(
         {
           sub: 'sub-sazzad-sazib-001',
           name: 'Sazzad Sazib',
-          given_name: 'Sazzad',
-          family_name: 'Sazib',
           preferred_username: 'sazib@gmail.com',
           email: 'sazib@gmail.com',
           email_verified: true,
-          tid: tenant,
-          oid: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
+          tid: project.tenant,
           roles: ['Global Administrator', 'User'],
           groups: ['Engineers', 'Admins'],
-          department: 'Engineering',
-          job_title: 'Principal Security Engineer',
         },
         null,
         2
       ),
     },
     {
+      id: 'proxy',
       name: 'Browser CORS Token Proxy',
-      method: 'POST' as const,
-      url: tokenProxyUrl,
-      isCustomMock: true,
-      description: 'Non-standard Entra helper: CORS-friendly JSON token exchange endpoint for browser SPAs and test scripts to exchange codes without cross-origin issues.',
-      requestSample: `POST /api/token HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/json\n\n{\n  "token_url": "${tokenUrl}",\n  "client_id": "${project.clientId}",\n  "client_secret": "${clientSecret}",\n  "code": "mock_code_8f2b1d9c",\n  "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",\n  "redirect_uri": "${project.redirectUri}"\n}`,
-      responseStatus: '200 OK (application/json)',
-      responseSample: JSON.stringify(
-        {
-          access_token: 'eyJhbGciOiJSUzI1NiIs...',
-          id_token: 'eyJhbGciOiJSUzI1NiIs...',
-          token_type: 'Bearer',
-          expires_in: 3600,
-        },
-        null,
-        2
-      ),
+      method: 'POST',
+      kind: 'mock',
+      url: `${rawOrigin}/api/token`,
+      description: 'A CORS-friendly JSON exchange for browser SPAs and test scripts unable to call form-encoded endpoints directly.',
+      request: `POST /api/token HTTP/1.1\nHost: ${host}\nContent-Type: application/json\n\n${JSON.stringify({ token_url: token, client_id: clientId, client_secret: secret, code: 'mock_code_8f2b1d9c', code_verifier: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk', redirect_uri: redirect }, null, 2)}`,
+      responseLabel: '200 OK',
+      response: JSON.stringify({ access_token: 'eyJhbGci...', id_token: 'eyJhbGci...', token_type: 'Bearer', expires_in: 3600 }, null, 2),
     },
     {
+      id: 'verify',
       name: 'Token Signature & Claims Validator',
-      method: 'POST' as const,
-      url: verifyApiUrl,
-      isCustomMock: true,
-      description: 'Non-standard Entra helper: Cryptographically validates RS256 signatures against the local JWKS and returns verified claims payload for client-side test automation.',
-      requestSample: `POST /api/verify HTTP/1.1\nHost: ${knownHost}\nContent-Type: application/json\n\n{\n  "id_token": "eyJhbGciOiJSUzI1NiIs...",\n  "jwks_uri": "${jwksUrl}",\n  "issuer": "${issuerUrl}",\n  "audience": "${project.clientId}"\n}`,
-      responseStatus: '200 OK (application/json)',
-      responseSample: JSON.stringify(
-        {
-          verified: true,
-          claims: {
-            sub: 'sub-sazzad-sazib-001',
-            name: 'Sazzad Sazib',
-            email: 'sazib@gmail.com',
-            roles: ['Global Administrator', 'User'],
-          },
-        },
-        null,
-        2
-      ),
+      method: 'POST',
+      kind: 'mock',
+      url: `${rawOrigin}/api/verify`,
+      description: 'Validates RS256 signatures against the local JWKS and returns decoded claims for test automation.',
+      request: `POST /api/verify HTTP/1.1\nHost: ${host}\nContent-Type: application/json\n\n${JSON.stringify({ id_token: 'eyJhbGci...', jwks_uri: jwks, issuer, audience: clientId }, null, 2)}`,
+      responseLabel: '200 OK',
+      response: JSON.stringify({ verified: true, claims: { sub: 'sub-sazzad-sazib-001', name: 'Sazzad Sazib', email: 'sazib@gmail.com', roles: ['Global Administrator', 'User'] } }, null, 2),
     },
     {
-      name: 'Directory Mock Users API',
-      method: 'GET' as const,
-      url: usersApiUrl,
-      isCustomMock: true,
-      description: 'Non-standard Entra helper: REST API to list, create, and manage mock personas and claims without requiring Microsoft Graph admin permissions.',
-      requestSample: `GET /api/users HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
-      responseStatus: '200 OK (application/json)',
-      responseSample: JSON.stringify(
-        [
-          {
-            id: 'user-1',
-            name: 'Sazzad Sazib',
-            email: 'sazib@gmail.com',
-            preferred_username: 'sazib@gmail.com',
-            avatar_url: 'https://avatars.githubusercontent.com/u/8937268?v=4',
-            roles: ['Global Administrator', 'User'],
-            groups: ['Engineers', 'Admins'],
-          },
-          {
-            id: 'user-2',
-            name: 'Iftekhar Rifat',
-            email: 'rifat@gmail.com',
-            preferred_username: 'rifat@gmail.com',
-            avatar_url: 'https://avatars.githubusercontent.com/u/124599?v=4',
-            roles: ['Application Developer', 'User'],
-            groups: ['Developers'],
-          },
-        ],
-        null,
-        2
-      ),
-    },
-    {
-      name: 'OpenID Discovery Document (.well-known)',
-      method: 'GET' as const,
-      url: discoveryUrl,
-      isCustomMock: false,
-      description: 'Standard Entra v2.0: Auto-discovery configuration document (.well-known) used by OIDC libraries (NextAuth, Better Auth, Supabase, Spring Boot).',
-      requestSample: `GET /${tenant}/oauth2/v2.0/.well-known/openid-configuration HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
-      responseStatus: '200 OK (application/json)',
-      responseSample: JSON.stringify(
+      id: 'discovery',
+      name: 'OpenID Discovery Document',
+      method: 'GET',
+      kind: 'standard',
+      url: discovery,
+      description: 'Auto-discovery configuration consumed by OIDC libraries (NextAuth, Better Auth, MSAL, jose, Spring Security).',
+      request: `GET /${project.tenant}/oauth2/v2.0/.well-known/openid-configuration HTTP/1.1\nHost: ${host}\nAccept: application/json`,
+      responseLabel: '200 OK',
+      response: JSON.stringify(
         {
-          issuer: issuerUrl,
-          authorization_endpoint: authorizeBaseUrl,
-          token_endpoint: tokenUrl,
-          userinfo_endpoint: userinfoUrl,
-          jwks_uri: jwksUrl,
-          end_session_endpoint: logoutUrl,
+          issuer,
+          authorization_endpoint: authorize,
+          token_endpoint: token,
+          userinfo_endpoint: userinfo,
+          jwks_uri: jwks,
+          end_session_endpoint: endSession,
           response_types_supported: ['code', 'id_token', 'code id_token', 'token'],
           scopes_supported: ['openid', 'profile', 'email', 'offline_access'],
           id_token_signing_alg_values_supported: ['RS256'],
@@ -241,612 +169,408 @@ export const msalInstance = new PublicClientApplication(msalConfig);`;
       ),
     },
     {
-      name: 'JWKS Public Keys (RS256)',
-      method: 'GET' as const,
-      url: jwksUrl,
-      isCustomMock: false,
-      description: 'Standard Entra v2.0: JSON Web Key Set containing RSA public keys used by resource servers to verify token signatures.',
-      requestSample: `GET /${tenant}/discovery/v2.0/keys HTTP/1.1\nHost: ${knownHost}\nAccept: application/json`,
-      responseStatus: '200 OK (application/json)',
-      responseSample: JSON.stringify(
-        {
-          keys: [
-            {
-              kty: 'RSA',
-              use: 'sig',
-              alg: 'RS256',
-              kid: 'local-sso-active-key',
-              n: 'u9h3K8x2Y_... (2048-bit RSA Modulus)',
-              e: 'AQAB',
-            },
-          ],
-        },
-        null,
-        2
-      ),
+      id: 'jwks',
+      name: 'JWKS Public Keys',
+      method: 'GET',
+      kind: 'standard',
+      url: jwks,
+      description: 'The JSON Web Key Set with RSA public keys used by resource servers to verify token signatures.',
+      request: `GET /${project.tenant}/discovery/v2.0/keys HTTP/1.1\nHost: ${host}\nAccept: application/json`,
+      responseLabel: '200 OK',
+      response: JSON.stringify({ keys: [{ kty: 'RSA', use: 'sig', alg: 'RS256', kid: 'local-sso-active-key', n: 'u9h3K8x2Y_... (2048-bit RSA modulus)', e: 'AQAB' }] }, null, 2),
     },
     {
-      name: 'OIDC Token Issuer (iss claim)',
-      method: 'CONFIG' as const,
-      url: issuerUrl,
-      isCustomMock: false,
-      description: 'Standard Entra v2.0: The expected OIDC token issuer URI validated against the "iss" claim inside signed ID tokens.',
-      requestSample: `// Decoded ID Token Payload Claim:\n{\n  "iss": "${issuerUrl}",\n  "aud": "${project.clientId}",\n  "sub": "sub-sazzad-sazib-001",\n  "tid": "${tenant}"\n}`,
-      responseStatus: 'JWT Claims Match',
-      responseSample: `iss == "${issuerUrl}"\naud == "${project.clientId}"\nSignature: Validated via JWKS`,
+      id: 'issuer',
+      name: 'OIDC Token Issuer',
+      method: 'CONFIG',
+      kind: 'standard',
+      url: issuer,
+      description: 'The expected issuer URI matched against the iss claim inside signed ID tokens.',
+      request: `// Decoded ID token payload claim:\n{\n  "iss": "${issuer}",\n  "aud": "${clientId}",\n  "sub": "sub-sazzad-sazib-001",\n  "tid": "${project.tenant}"\n}`,
+      responseLabel: 'JWT claim match',
+      response: `iss == "${issuer}"\naud == "${clientId}"\nSignature: validated via local JWKS`,
     },
     {
-      name: 'Authority URL (MSAL.js)',
-      method: 'CONFIG' as const,
-      url: authorityUrl,
-      isCustomMock: false,
-      description: 'Standard Entra v2.0: Base authority string configured in @azure/msal-browser PublicClientApplication.',
-      requestSample: `import { PublicClientApplication } from "@azure/msal-browser";\n\nexport const msal = new PublicClientApplication({\n  auth: {\n    clientId: "${project.clientId}",\n    authority: "${authorityUrl}",\n    knownAuthorities: ["${knownHost}"]\n  }\n});`,
-      responseStatus: 'MSAL Instance Config',
-      responseSample: `{\n  "authority": "${authorityUrl}",\n  "knownAuthorities": ["${knownHost}"]\n}`,
-    },
-    {
+      id: 'logout',
       name: 'End Session / Logout',
-      method: 'GET' as const,
-      url: logoutUrl,
-      isCustomMock: false,
-      description: 'Standard Entra v2.0: Terminates SSO session and redirects user to post_logout_redirect_uri.',
-      requestSample: `GET /${tenant}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(project.rootUrl || 'http://localhost:3000')} HTTP/1.1\nHost: ${knownHost}`,
-      responseStatus: '302 Found (Redirect)',
-      responseSample: `HTTP/1.1 302 Found\nLocation: ${project.rootUrl || 'http://localhost:3000'}`,
+      method: 'GET',
+      kind: 'standard',
+      url: endSession,
+      description: 'Terminates the single sign-on session and redirects back to post_logout_redirect_uri.',
+      request: `GET /${project.tenant}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(rootUrl)} HTTP/1.1\nHost: ${host}`,
+      responseLabel: '302 redirect',
+      response: `HTTP/1.1 302 Found\nLocation: ${rootUrl}`,
     },
   ];
+}
 
-  const standardEndpoints = endpointsList.filter((e) => !e.isCustomMock);
-  const customEndpoints = endpointsList.filter((e) => e.isCustomMock);
+export function renderConfigView(container: HTMLElement, onProjectChange?: () => void) {
+  const project = getActiveProject();
+  let activeTab: 'settings' | 'endpoints' = 'settings';
+  let endpointFilter: 'all' | 'standard' | 'mock' = 'all';
+  let endpointQuery = '';
 
-  function renderEndpointCard(item: (typeof endpointsList)[0]): string {
-    const methodBadge = {
-      GET: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
-      POST: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-      CONFIG: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-    }[item.method];
+  const render = () => {
+    const endpoints = getEndpointsForProject(project);
+    const authorizeUrl = `${getAuthority(project)}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
+      project.clientId
+    )}&response_type=code&redirect_uri=${encodeURIComponent(
+      project.redirectUri
+    )}&scope=${encodeURIComponent(project.scope)}&prompt=select_account`;
 
-    return `
-      <div class="p-3.5 bg-slate-900/90 hover:bg-slate-900 rounded-xl border border-slate-800 transition space-y-2.5">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 flex-wrap min-w-0">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider border ${methodBadge}">${item.method}</span>
-            <span class="text-white font-sans font-semibold text-xs truncate">${item.name}</span>
-            ${item.isCustomMock
-              ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                  Custom for Mock (Optional)
-                </span>`
-              : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
-                  Standard Entra v2.0
-                </span>`
-            }
+    container.innerHTML = `
+      <section class="page">
+        <header class="page-head">
+          <div class="page-head-copy">
+            <div class="eyebrow">
+              <span class="eyebrow-index">02</span>
+              <span>Project configuration</span>
+              <span class="eyebrow-rule"></span>
+            </div>
+            <h1 class="page-title">Endpoints &amp; config</h1>
+            <p class="page-description">Tune the identity provider parameters for <strong>${escapeHtml(project.name)}</strong>, then copy the exact endpoints into your application.</p>
           </div>
-          <button data-copy="${item.url}" class="copy-btn shrink-0 p-1.5 border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white rounded-md transition" aria-label="Copy URL" title="Copy URL">
-            ${icon('clipboard', 'w-3.5 h-3.5')}
-          </button>
-        </div>
-
-        <div class="bg-slate-950/80 px-2.5 py-1.5 rounded-lg border border-slate-800/60 overflow-hidden">
-          <span class="text-slate-300 text-[11px] font-mono break-all select-all block">${item.url}</span>
-        </div>
-
-        <p class="text-[11px] font-sans text-slate-400 leading-relaxed">${item.description}</p>
-
-        <!-- Collapsible Request & Response Sample -->
-        <details class="group border-t border-slate-800/80 pt-2 text-xs">
-          <summary class="cursor-pointer text-[11px] font-sans text-sky-400 hover:text-sky-300 flex items-center justify-between transition select-none py-1">
-            <span class="flex items-center gap-1.5 font-medium">
-              ${icon('terminal', 'w-3 h-3 text-orange-400')}
-              <span>Request &amp; Response Samples</span>
-            </span>
-            <span class="group-open:rotate-180 transition-transform text-slate-400">
-              ${icon('chevron-down', 'w-3.5 h-3.5')}
-            </span>
-          </summary>
-          <div class="mt-2.5 space-y-3 font-sans">
-            <!-- Request -->
-            <div class="space-y-1">
-              <div class="flex items-center justify-between text-[10px] text-slate-400">
-                <span class="font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1">
-                  ${icon('zap', 'w-3 h-3 text-sky-400')} Request Sample
-                </span>
-                <button data-copy="${encodeURIComponent(item.requestSample)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
-                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy Request</span>
-                </button>
-              </div>
-              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono overflow-x-auto whitespace-pre leading-relaxed"><code class="language-bash">${highlightCode(item.requestSample, 'bash')}</code></pre>
-            </div>
-
-            <!-- Response -->
-            <div class="space-y-1">
-              <div class="flex items-center justify-between text-[10px] text-slate-400">
-                <span class="font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                  ${icon('check-circle', 'w-3 h-3 text-emerald-400')} ${item.responseStatus || '200 OK Response'}
-                </span>
-                <button data-copy="${encodeURIComponent(item.responseSample)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
-                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy Response</span>
-                </button>
-              </div>
-              <pre class="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[11px] font-mono overflow-x-auto whitespace-pre leading-relaxed"><code class="language-json">${highlightCode(item.responseSample, 'json')}</code></pre>
-            </div>
+          <div class="page-actions">
+            <a class="btn btn-secondary" href="#login">
+              ${icon('terminal', 'w-4 h-4')} Open auth lab
+            </a>
           </div>
-        </details>
-      </div>
-    `;
-  }
+        </header>
 
-  const tabBtn = (tab: ConfigTab, label: string, badge?: string) => {
-    const active = activeTab === tab;
-    return `
-      <button data-config-tab="${tab}" class="config-tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
-        active
-          ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm shadow-sky-500/10'
-          : 'text-slate-400 hover:text-white border border-transparent hover:bg-white/5'
-      }">
-        ${label}
-        ${badge ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-sky-500/25 text-sky-200' : 'bg-slate-800 text-slate-400'}">${badge}</span>` : ''}
-      </button>
-    `;
-  };
-
-  const settingsPanel = `
-    <!-- Quick Frontend Redirect URL Card -->
-    <div class="tilt-card glass-panel glass-hero p-6 rounded-2xl relative overflow-hidden">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="p-2 rounded-lg bg-sky-500/20 text-sky-400 shrink-0">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          </div>
-          <div class="min-w-0">
-            <h2 class="text-lg font-bold text-white">Frontend Redirect Authorize URL</h2>
-            <p class="text-xs text-slate-400">Direct your frontend login button/session generator to this URL to trigger Microsoft Entra auth flow</p>
-          </div>
-        </div>
-        <div class="flex flex-wrap gap-2 shrink-0">
-          <button id="copyAuthorizeUrl" class="copy-action-btn px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold rounded-lg shadow-md shadow-sky-500/20 transition flex items-center gap-2">
-            ${icon('copy', 'w-4 h-4')}<span class="copy-action-label">Copy Authorize URL</span>
-          </button>
-          <a href="${authorizeUrl}" target="_blank" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1">
-            Test Launch ${icon('arrow-up-right', 'w-3.5 h-3.5')}
-          </a>
-        </div>
-      </div>
-
-      <div class="auth-preview-url p-3 rounded-xl border font-mono text-xs break-all select-all leading-relaxed">
-        ${authorizeUrl}
-      </div>
-    </div>
-
-    <!-- Main Config Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-
-      <!-- Left: Configuration Form -->
-      <div class="lg:col-span-5 space-y-6">
-        <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5">
-          <h3 class="text-base font-bold text-white flex items-center gap-2">
-            ${icon('settings', 'w-4 h-4 text-orange-400')} Project SSO Settings
-          </h3>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Name</label>
-              <input id="inputName" type="text" value="${project.name}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Project Root URL</label>
-              <input id="inputRootUrl" type="text" value="${project.rootUrl || ''}" placeholder="e.g. http://localhost:3000" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-              <p class="mt-1 text-[11px] text-slate-500">Root URL of your frontend application. Used to build authorization links for this project.</p>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">
-                Tenant (Alias or GUID)
-                <span class="text-[10px] text-slate-500 font-normal">("common", "organizations", "consumers", or tenant GUID)</span>
-              </label>
-              <input id="inputTenant" type="text" value="${project.tenant}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Application (Client) ID</label>
-              <input id="inputClientId" type="text" value="${project.clientId}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center gap-1.5">
-                ${icon('lock', 'w-3 h-3 text-amber-400')} Client Secret
-                <span class="text-[10px] text-slate-500 font-normal">(shown in token requests, like Microsoft Entra)</span>
-              </label>
-              <div class="relative">
-                <input id="inputClientSecret" type="password" value="${clientSecret}" placeholder="e.g. local-sso-secret-..." autocomplete="off" spellcheck="false" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl pl-3.5 pr-20 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-                <div class="absolute inset-y-0 right-1.5 flex items-center gap-1">
-                  <button id="btnToggleSecret" type="button" class="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition" aria-label="Toggle secret visibility" title="Show / hide secret">
-                    ${icon('key', 'w-3.5 h-3.5')}
-                  </button>
-                  <button id="btnCopySecret" type="button" class="copy-action-btn p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition" aria-label="Copy secret" title="Copy secret">
-                    ${icon('copy', 'w-3.5 h-3.5')}
-                  </button>
-                </div>
-              </div>
-              <p class="mt-1 text-[11px] text-slate-500">Client secret is echoed in token curl snippets and responses. Mock servers accept any value.</p>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">Redirect URI (Frontend Callback)</label>
-              <input id="inputRedirectUri" type="text" value="${project.redirectUri}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
-                <span>Host Origin / Base URL</span>
-                <span class="text-[10px] text-sky-400 font-normal">Active: ${effectiveOrigin}</span>
-              </label>
-              <input id="inputHost" type="text" placeholder="e.g. https://xxxx.ngrok-free.app or ${window.location.origin}" value="${project.host || ''}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white placeholder-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-              <p class="mt-1 text-[11px] text-slate-500">Base host origin for endpoints &amp; snippets. Configure with your ngrok HTTPS URL when exposing externally.</p>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
-                <span>OIDC Issuer Format</span>
-                <span class="text-[10px] text-slate-500 font-normal font-mono truncate max-w-[200px]">${issuerUrl}</span>
-              </label>
-              <select id="selectIssuerMode" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                <option value="host" ${issuerMode !== 'entra' ? 'selected' : ''}>Host Origin (${effectiveOrigin}/${tenant}/oauth2/v2.0) [Recommended]</option>
-                <option value="entra" ${issuerMode === 'entra' ? 'selected' : ''}>Microsoft Entra ID (https://login.microsoftonline.com/${tenant}/v2.0)</option>
-              </select>
-              <p class="mt-1 text-[11px] text-slate-500">Specifies the <code class="text-slate-400">iss</code> claim in ID tokens and discovery document.</p>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1.5">OAuth Scopes</label>
-              <input id="inputScope" type="text" value="${project.scope}" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
-          </div>
-
-          <div class="pt-2 flex flex-wrap items-center justify-between gap-2">
-            <button id="btnSaveConfig" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-sky-600/20">
-              Save Changes
-            </button>
-            ${
-              projects.length > 1
-                ? `<button id="btnDeleteProject" class="px-3.5 py-2 text-rose-400 hover:text-rose-300 text-xs font-medium hover:bg-rose-500/10 rounded-lg transition">Delete Project</button>`
-                : ''
-            }
-          </div>
-        </div>
-      </div>
-
-      <!-- Right: Integration Snippets -->
-      <div class="lg:col-span-7 space-y-6">
-        <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
-              ${icon('terminal', 'w-4 h-4 text-orange-400')} Frontend &amp; CLI Integration Snippets
-            </h3>
-            <div class="flex gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-xs">
-              <button id="tabMsal" class="px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-400 font-medium">MSAL.js</button>
-              <button id="tabCurl" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white">cURL</button>
-            </div>
-          </div>
-
-          <!-- MSAL.js Box -->
-          <div id="boxMsal" class="space-y-2">
-            <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400">
-              <span>Configure your frontend @azure/msal-browser instance:</span>
-              <button data-copy="${encodeURIComponent(msalSnippet)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
-                <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy Code</span>
+        <div class="config-layout">
+          <div class="config-main">
+            <div class="tabs" role="tablist" aria-label="Configuration sections">
+              <button type="button" class="tab${activeTab === 'settings' ? ' is-active' : ''}" id="tabBtnSettings" role="tab" aria-selected="${activeTab === 'settings'}">
+                Project settings
+              </button>
+              <button type="button" class="tab${activeTab === 'endpoints' ? ' is-active' : ''}" id="tabBtnEndpoints" role="tab" aria-selected="${activeTab === 'endpoints'}">
+                Endpoints &amp; APIs <span class="tab-count">${endpoints.length}</span>
               </button>
             </div>
-            <pre class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-typescript">${highlightCode(msalSnippet, 'typescript')}</code></pre>
-          </div>
 
-          <!-- cURL Box -->
-          <div id="boxCurl" class="space-y-4 hidden">
-            <div>
-              <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400 mb-1">
-                <span>1. Exchange Authorization Code for Tokens:</span>
-                <button data-copy="${encodeURIComponent(curlCodeSnippet)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
-                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy cURL</span>
-                </button>
+            ${
+              activeTab === 'settings'
+                ? `
+              <div class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2 class="panel-title">Project settings</h2>
+                    <p class="panel-description">These values shape the issuer, discovery document, and token claims returned to your client.</p>
+                  </div>
+                  <span class="chip chip-accent">Entra ID</span>
+                </div>
+                <div class="panel-body">
+                  <form id="settingsForm" novalidate>
+                    <div class="form-grid">
+                      <div class="field field-full">
+                        <label class="field-label" for="settingName">Project name <span class="required">*</span></label>
+                        <input class="input" id="settingName" value="${escapeHtml(project.name)}" required />
+                      </div>
+                      <div class="field">
+                        <label class="field-label" for="settingRoot">Root URL <span class="required">*</span></label>
+                        <input class="input mono" id="settingRoot" value="${escapeHtml(project.rootUrl)}" placeholder="http://localhost:3000" inputmode="url" required />
+                        <span class="field-help">Used by end-session redirect and example snippets.</span>
+                      </div>
+                      <div class="field">
+                        <label class="field-label" for="settingRedirect">Redirect URI <span class="required">*</span></label>
+                        <input class="input mono" id="settingRedirect" value="${escapeHtml(project.redirectUri)}" placeholder="http://localhost:3000/callback" inputmode="url" required />
+                      </div>
+                      <div class="field">
+                        <label class="field-label" for="settingTenant">Tenant <span class="required">*</span></label>
+                        <input class="input mono" id="settingTenant" value="${escapeHtml(project.tenant)}" required />
+                        <span class="field-help">Use <code>common</code> or a tenant GUID.</span>
+                      </div>
+                      <div class="field">
+                        <label class="field-label" for="settingClientId">Client ID <span class="required">*</span></label>
+                        <input class="input mono" id="settingClientId" value="${escapeHtml(project.clientId)}" required />
+                      </div>
+                      <div class="field">
+                        <label class="field-label" for="settingSecret">Client secret</label>
+                        <div class="input-wrap">
+                          <input class="input mono" id="settingSecret" value="${escapeHtml(project.clientSecret || '')}" readonly />
+                          <button type="button" class="input-action" id="btnCopySecret" title="Copy client secret" aria-label="Copy client secret">
+                            ${icon('copy', 'w-3.5 h-3.5')}
+                          </button>
+                        </div>
+                        <span class="field-help">Mock secrets are accepted universally by this provider.</span>
+                      </div>
+                      <div class="field">
+                        <label class="field-label" for="settingIssuer">Issuer mode</label>
+                        <select class="select" id="settingIssuer">
+                          <option value="host"${project.issuerMode !== 'entra' ? ' selected' : ''}>Host-based issuer (${escapeHtml(getAuthority(project))})</option>
+                          <option value="entra"${project.issuerMode === 'entra' ? ' selected' : ''}>Microsoft Entra issuer (https://login.microsoftonline.com/...)</option>
+                        </select>
+                        <span class="field-help">Controls the <code>iss</code> claim in tokens.</span>
+                      </div>
+                      <div class="field field-full">
+                        <label class="field-label" for="settingScope">Requested scopes <span class="required">*</span></label>
+                        <input class="input mono" id="settingScope" value="${escapeHtml(project.scope)}" required />
+                        <span class="field-help">Space-separated. Keep <code>openid</code> for OIDC flows.</span>
+                      </div>
+                      <div class="field field-full">
+                        <label class="field-label" for="settingHost">Authority host override</label>
+                        <input class="input mono" id="settingHost" value="${escapeHtml(project.host || '')}" placeholder="Leave blank to use current origin (${escapeHtml(window.location.origin)})" />
+                        <span class="field-help">Optional override for reverse proxies, tunnels, or mobile testing.</span>
+                      </div>
+                    </div>
+                    <div class="form-actions">
+                      <span class="form-note">Changes are saved in this browser.</span>
+                      <button type="button" class="btn btn-quiet" id="btnResetSettings">Reset</button>
+                      <button type="submit" class="btn btn-primary">${icon('check', 'w-3.5 h-3.5')} Save changes</button>
+                    </div>
+                  </form>
+
+                  <div class="authorize-block">
+                    <div class="authorize-head">
+                      <div>
+                        <div class="authorize-title">Authorize URL</div>
+                        <span class="field-help">Direct browser entry point for testing single sign-on.</span>
+                      </div>
+                      <button type="button" class="copy-button" id="btnCopyAuthUrl" title="Copy authorize URL" aria-label="Copy authorize URL">
+                        ${icon('copy', 'w-3.5 h-3.5')}
+                      </button>
+                    </div>
+                    <div class="authorize-url">${escapeHtml(authorizeUrl)}</div>
+                  </div>
+                </div>
               </div>
-              <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlCodeSnippet, 'bash')}</code></pre>
-            </div>
+            `
+                : `
+              <div class="panel">
+                <div class="panel-head">
+                  <div>
+                    <h2 class="panel-title">Endpoints &amp; APIs</h2>
+                    <p class="panel-description">Standard Entra v2.0 routes plus local-only helpers for testing and automation.</p>
+                  </div>
+                  <span class="chip">${endpoints.length} routes</span>
+                </div>
+                <div class="panel-body">
+                  <div class="endpoint-toolbar">
+                    <div class="search-box">
+                      ${icon('search', 'w-3.5 h-3.5')}
+                      <input class="input" id="endpointSearchInput" placeholder="Search endpoints" value="${escapeHtml(endpointQuery)}" />
+                    </div>
+                    <div class="filter-row">
+                      <button type="button" class="filter-button${endpointFilter === 'all' ? ' is-active' : ''}" data-filter="all">All</button>
+                      <button type="button" class="filter-button${endpointFilter === 'standard' ? ' is-active' : ''}" data-filter="standard">Standard</button>
+                      <button type="button" class="filter-button${endpointFilter === 'mock' ? ' is-active' : ''}" data-filter="mock">Mock helpers</button>
+                    </div>
+                  </div>
 
-            <div>
-              <div class="flex flex-wrap justify-between items-center gap-2 text-xs text-slate-400 mb-1">
-                <span>2. Refresh Token Grant:</span>
-                <button data-copy="${encodeURIComponent(curlRefreshSnippet)}" class="copy-encoded-btn inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 transition">
-                  <span class="copy-encoded-icon">${icon('copy', 'w-3 h-3')}</span><span class="copy-encoded-label">Copy cURL</span>
-                </button>
+                  <div class="endpoint-list" id="endpointListContainer">
+                    ${endpoints
+                      .filter((ep) => {
+                        const matchFilter = endpointFilter === 'all' || ep.kind === endpointFilter;
+                        const matchQuery =
+                          !endpointQuery ||
+                          ep.name.toLowerCase().includes(endpointQuery.toLowerCase()) ||
+                          ep.url.toLowerCase().includes(endpointQuery.toLowerCase()) ||
+                          ep.description.toLowerCase().includes(endpointQuery.toLowerCase());
+                        return matchFilter && matchQuery;
+                      })
+                      .map((ep) => {
+                        return `
+                        <div class="endpoint-row" data-endpoint-id="${ep.id}">
+                          <div class="endpoint-main">
+                            <button type="button" class="endpoint-toggle" data-toggle="${ep.id}">
+                              <span class="method method-${ep.method.toLowerCase()}">${ep.method}</span>
+                              <span class="endpoint-identity">
+                                <span class="endpoint-name-row">
+                                  <span class="endpoint-name">${escapeHtml(ep.name)}</span>
+                                  ${ep.kind === 'mock' ? `<span class="chip chip-accent">Local helper</span>` : ''}
+                                </span>
+                                <span class="endpoint-url" title="${escapeHtml(ep.url)}">${escapeHtml(ep.url)}</span>
+                              </span>
+                            </button>
+                            <div class="endpoint-actions">
+                              <button type="button" class="copy-button" data-copy-val="${escapeHtml(ep.url)}" title="Copy endpoint URL">
+                                ${icon('copy', 'w-3 h-3')}
+                              </button>
+                              <button type="button" class="icon-button" data-toggle="${ep.id}" title="Toggle details">
+                                ${icon('chevron-down', 'w-3.5 h-3.5 endpoint-chevron')}
+                              </button>
+                            </div>
+                          </div>
+                          <div class="endpoint-detail" id="detail-${ep.id}" hidden>
+                            <p class="endpoint-description">${escapeHtml(ep.description)}</p>
+                            <div class="sample-grid">
+                              <div class="sample-block">
+                                <div class="sample-head">
+                                  <span>Request sample</span>
+                                  <button type="button" class="copy-button" data-copy-val="${escapeHtml(ep.request)}" title="Copy request sample">
+                                    ${icon('copy', 'w-3 h-3')}
+                                  </button>
+                                </div>
+                                <pre class="sample-code"><code class="language-bash">${highlightCode(ep.request, 'bash')}</code></pre>
+                              </div>
+                              <div class="sample-block">
+                                <div class="sample-head">
+                                  <span>${escapeHtml(ep.responseLabel)}</span>
+                                  <button type="button" class="copy-button" data-copy-val="${escapeHtml(ep.response)}" title="Copy response sample">
+                                    ${icon('copy', 'w-3 h-3')}
+                                  </button>
+                                </div>
+                                <pre class="sample-code"><code class="language-${ep.response.trim().startsWith('{') ? 'json' : 'bash'}">${highlightCode(ep.response, ep.response.trim().startsWith('{') ? 'json' : 'bash')}</code></pre>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      `;
+                      })
+                      .join('')}
+                  </div>
+                </div>
               </div>
-              <pre class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono overflow-x-auto"><code class="language-bash">${highlightCode(curlRefreshSnippet, 'bash')}</code></pre>
-            </div>
+            `
+            }
           </div>
-        </div>
 
-        <div class="glass-panel p-5 rounded-2xl border border-slate-800/80">
-          <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
-            ${icon('info', 'w-4 h-4 text-sky-400')} Using these settings
-          </h4>
-          <p class="text-xs text-slate-400 leading-relaxed">
-            Copy the Client ID and Client Secret above into your OAuth client. Then open the
-            <button data-config-tab="endpoints" class="config-tab-link text-sky-400 hover:text-sky-300 font-semibold underline underline-offset-2">Endpoints &amp; APIs</button>
-            tab to copy ready-to-use authorize, token, JWKS, and discovery URLs.
-          </p>
-        </div>
-      </div>
-
-    </div>
-  `;
-
-  const endpointsPanel = `
-    <div class="space-y-6">
-      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-base font-bold text-white flex items-center gap-2">
-            ${icon('globe', 'w-4 h-4 text-sky-400')} Standard Microsoft Entra v2.0 Endpoints
-          </h3>
-          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-            ${standardEndpoints.length} Endpoints
-          </span>
-        </div>
-
-        <p class="text-xs text-slate-400">
-          Standard OpenID Connect and OAuth 2.0 endpoints compliant with the official Microsoft Entra ID v2.0 specification.
-        </p>
-
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 font-sans">
-          ${standardEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
-        </div>
-      </div>
-
-      <!-- Custom for Mock Endpoints -->
-      <div class="glass-panel glass-hover p-6 rounded-2xl space-y-5 border border-amber-500/20 shadow-xl shadow-amber-500/5">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2.5">
-            <div class="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              ${icon('zap', 'w-4 h-4')}
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-base font-bold text-white">Custom Mock Endpoints &amp; Helper APIs</h3>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Custom for Mock (Optional)
-                </span>
+          <aside class="aside-sticky">
+            <div class="aside-panel">
+              <div class="aside-title">
+                Connection summary <span class="chip chip-green"><span class="dot"></span>Ready</span>
               </div>
-              <p class="text-xs text-slate-400 mt-0.5">Non-standard extensions provided by local-sso to ease mock integration testing and generic OIDC library compatibility.</p>
+              <div class="aside-row">
+                <span class="aside-row-label">Discovery</span>
+                <span class="aside-row-value" title="${escapeHtml(getAuthority(project))}/oauth2/v2.0/.well-known/openid-configuration">…/openid-configuration</span>
+              </div>
+              <div class="aside-row">
+                <span class="aside-row-label">Tenant</span>
+                <span class="aside-row-value" title="${escapeHtml(project.tenant)}">${escapeHtml(project.tenant)}</span>
+              </div>
+              <div class="aside-row">
+                <span class="aside-row-label">Client</span>
+                <span class="aside-row-value" title="${escapeHtml(project.clientId)}">${escapeHtml(project.clientId)}</span>
+              </div>
+              <div class="aside-row">
+                <span class="aside-row-label">Redirect</span>
+                <span class="aside-row-value" title="${escapeHtml(project.redirectUri)}">${escapeHtml(project.redirectUri)}</span>
+              </div>
+              <div class="aside-row">
+                <span class="aside-row-label">PKCE</span>
+                <span class="aside-row-value">S256 (SHA-256)</span>
+              </div>
+              <div class="authorize-block" style="margin-top: 14px;">
+                <a class="btn btn-secondary btn-block" href="#login">
+                  ${icon('zap', 'w-3.5 h-3.5')} Test the flow
+                </a>
+              </div>
             </div>
-          </div>
-          <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            ${customEndpoints.length} Helper Endpoints
-          </span>
+
+            <div class="aside-panel">
+              <div class="aside-title">Local mock notes</div>
+              <p class="aside-note" style="margin-top:0; padding-top:0; border-top:0;">The provider accepts any client secret. Discovery, JWKS, and token shapes follow the Entra v2.0 protocol so standard OIDC clients connect without changes.</p>
+              <div class="authority-card">
+                <div class="authority-label">
+                  <span class="status-dot"></span> ${project.issuerMode === 'entra' ? 'Microsoft issuer' : 'Host issuer'}
+                </div>
+                <div class="authority-value" title="${escapeHtml(getIssuerValue(project))}">${escapeHtml(getIssuerValue(project))}</div>
+              </div>
+            </div>
+          </aside>
         </div>
+      </section>
+    `;
 
-        <div class="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-xs text-slate-300 flex items-start gap-3">
-          <div class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
-            ${icon('info', 'w-4 h-4')}
-          </div>
-          <div class="space-y-1">
-            <span class="font-semibold text-amber-300 text-xs">Standard Entra vs. Custom for Mock Helpers</span>
-            <p class="text-slate-400 text-[11px] leading-relaxed">
-              Official Microsoft Entra v2.0 does not supply a standard OIDC <code>/userinfo</code> endpoint (it uses Microsoft Graph instead). Generic OIDC clients (such as <strong>Better Auth</strong>, <strong>NextAuth</strong>, <strong>Spring Security</strong>, etc.) often expect a standard UserInfo endpoint or simplified token APIs to function without complex Graph SDK configuration. If your client wants them, you can freely use them; otherwise, stick exclusively to the standard Entra v2.0 endpoints above.
-            </p>
-          </div>
-        </div>
+    // Tab handlers
+    document.getElementById('tabBtnSettings')?.addEventListener('click', () => {
+      activeTab = 'settings';
+      render();
+    });
+    document.getElementById('tabBtnEndpoints')?.addEventListener('click', () => {
+      activeTab = 'endpoints';
+      render();
+    });
 
-        <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 font-sans">
-          ${customEndpoints.map((ep) => renderEndpointCard(ep)).join('')}
-        </div>
-      </div>
-    </div>
-  `;
+    if (activeTab === 'settings') {
+      document.getElementById('btnCopySecret')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(project.clientSecret || '');
+        showToast('Copied client secret');
+      });
+      document.getElementById('btnCopyAuthUrl')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(authorizeUrl);
+        showToast('Copied Authorize URL');
+      });
 
-  container.innerHTML = `
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      document.getElementById('btnResetSettings')?.addEventListener('click', () => {
+        render();
+        showToast('Settings reset');
+      });
 
-      <!-- Top Banner / Project Header -->
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-6 rounded-2xl">
-        <div>
-          <div class="flex flex-wrap items-center gap-2 mb-1">
-            <h1 class="text-2xl font-bold text-white">SSO Configuration</h1>
-            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30">Active</span>
-          </div>
-          <p class="text-sm text-slate-400">Project: <span class="text-white font-medium">${project.name}</span> &mdash; <span class="font-mono text-xs">${project.rootUrl || '—'}</span></p>
-          <p class="text-sm text-slate-400 mt-0.5">Configure your local Microsoft Entra ID tenant parameters and copy endpoints for your frontend application.</p>
-        </div>
+      document.getElementById('settingsForm')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = (document.getElementById('settingName') as HTMLInputElement).value.trim();
+        const rootUrl = (document.getElementById('settingRoot') as HTMLInputElement).value.trim();
+        const redirectUri = (document.getElementById('settingRedirect') as HTMLInputElement).value.trim();
+        const tenant = (document.getElementById('settingTenant') as HTMLInputElement).value.trim();
+        const clientId = (document.getElementById('settingClientId') as HTMLInputElement).value.trim();
+        const scope = (document.getElementById('settingScope') as HTMLInputElement).value.trim();
+        const host = (document.getElementById('settingHost') as HTMLInputElement).value.trim();
+        const issuerMode = (document.getElementById('settingIssuer') as HTMLSelectElement).value as 'host' | 'entra';
 
-        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <select id="projectSelector" class="flex-1 min-w-0 md:flex-none md:w-auto bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-sky-500 focus:outline-none">
-            ${projects
-              .map(
-                (p) => `<option value="${p.id}" ${p.id === project.id ? 'selected' : ''}>${p.name} (${p.rootUrl})</option>`
-              )
-              .join('')}
-          </select>
-          <button id="btnNewProject" class="shrink-0 px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium rounded-xl border border-slate-700 transition flex items-center gap-1.5" aria-label="New project">
-            ${icon('plus', 'w-3.5 h-3.5', 2.25)} New
-          </button>
-        </div>
-      </div>
-
-      <!-- Tabs -->
-      <div class="flex items-center gap-1.5 p-1.5 glass-panel rounded-2xl w-full sm:w-auto sm:inline-flex">
-        ${tabBtn('settings', `${icon('settings', 'w-4 h-4')} Project Settings`)}
-        ${tabBtn('endpoints', `${icon('globe', 'w-4 h-4')} Endpoints &amp; APIs`, String(endpointsList.length))}
-      </div>
-
-      <!-- Panels -->
-      <div id="panelSettings" class="${activeTab === 'settings' ? '' : 'hidden'} space-y-6">
-        ${settingsPanel}
-      </div>
-      <div id="panelEndpoints" class="${activeTab === 'endpoints' ? '' : 'hidden'}">
-        ${endpointsPanel}
-      </div>
-
-    </div>
-  `;
-
-  const switchTab = (tab: ConfigTab) => {
-    document.querySelectorAll<HTMLElement>('[data-config-tab]').forEach((el) => {
-      const isActive = el.getAttribute('data-config-tab') === tab;
-      if (el.classList.contains('config-tab-btn')) {
-        el.className = `config-tab-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
-          isActive
-            ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm shadow-sky-500/10'
-            : 'text-slate-400 hover:text-white border border-transparent hover:bg-white/5'
-        }`;
-        const badge = el.querySelector('span');
-        if (badge) {
-          badge.className = `px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-sky-500/25 text-sky-200' : 'bg-slate-800 text-slate-400'}`;
+        if (!name || !tenant || !clientId || !redirectUri) {
+          showToast('Please fill in required fields', 'error');
+          return;
         }
-      }
-    });
-    document.getElementById('panelSettings')?.classList.toggle('hidden', tab !== 'settings');
-    document.getElementById('panelEndpoints')?.classList.toggle('hidden', tab !== 'endpoints');
-    activeTab = tab;
+
+        project.name = name;
+        project.rootUrl = rootUrl.replace(/\/+$/, '');
+        project.redirectUri = redirectUri;
+        project.tenant = tenant;
+        project.clientId = clientId;
+        project.scope = scope;
+        project.host = host ? host.replace(/\/+$/, '') : '';
+        project.issuerMode = issuerMode;
+
+        saveActiveProject(project);
+        showToast('Project settings saved successfully');
+        if (onProjectChange) onProjectChange();
+        render();
+      });
+    } else {
+      // Endpoints tab handlers
+      const searchInput = document.getElementById('endpointSearchInput') as HTMLInputElement | null;
+      searchInput?.addEventListener('input', () => {
+        endpointQuery = searchInput.value;
+        render();
+        // re-focus after render
+        const newSearch = document.getElementById('endpointSearchInput') as HTMLInputElement | null;
+        if (newSearch) {
+          newSearch.focus();
+          newSearch.setSelectionRange(endpointQuery.length, endpointQuery.length);
+        }
+      });
+
+      container.querySelectorAll<HTMLButtonElement>('[data-filter]').forEach((b) => {
+        b.addEventListener('click', () => {
+          endpointFilter = b.dataset.filter as any;
+          render();
+        });
+      });
+
+      container.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.toggle!;
+          const detail = document.getElementById(`detail-${id}`);
+          const row = container.querySelector(`[data-endpoint-id="${id}"]`);
+          if (detail && row) {
+            const isHidden = detail.hidden;
+            detail.hidden = !isHidden;
+            row.classList.toggle('is-open', isHidden);
+          }
+        });
+      });
+
+      container.querySelectorAll<HTMLButtonElement>('[data-copy-val]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const val = btn.dataset.copyVal || '';
+          navigator.clipboard.writeText(val);
+          showToast('Copied to clipboard');
+        });
+      });
+    }
   };
 
-  // Flash a "Copied" confirmation on any copy control.
-  const flashCopied = (btn: HTMLElement) => {
-    if (btn.getAttribute('data-copied') === '1') return;
-    btn.setAttribute('data-copied', '1');
-
-    const originalHTML = btn.innerHTML;
-    const labelEl = btn.querySelector<HTMLElement>('.copy-encoded-label, .copy-action-label');
-
-    if (labelEl) {
-      const iconEl = btn.querySelector<SVGElement>('.copy-encoded-icon svg, svg');
-      if (iconEl) iconEl.outerHTML = icon('check', 'w-3.5 h-3.5');
-      labelEl.textContent = 'Copied!';
-      btn.classList.add('text-emerald-400');
-      setTimeout(() => {
-        btn.innerHTML = originalHTML;
-        btn.classList.remove('text-emerald-400');
-        btn.removeAttribute('data-copied');
-      }, 1600);
-      return;
-    }
-
-    // Icon-only controls: swap the glyph for a check mark.
-    btn.innerHTML = icon('check', 'w-3.5 h-3.5');
-    btn.classList.add('text-emerald-400', 'border-emerald-500/40');
-    setTimeout(() => {
-      btn.innerHTML = originalHTML;
-      btn.classList.remove('text-emerald-400', 'border-emerald-500/40');
-      btn.removeAttribute('data-copied');
-    }, 1600);
-  };
-
-  document.querySelectorAll<HTMLElement>('[data-config-tab]').forEach((el) => {
-    el.addEventListener('click', () => switchTab(el.getAttribute('data-config-tab') as ConfigTab));
-  });
-
-  document.getElementById('projectSelector')?.addEventListener('change', (e) => {
-    setActiveProjectId((e.target as HTMLSelectElement).value);
-    renderConfigView(container, activeTab);
-    showToast('Project switched');
-  });
-
-  document.getElementById('btnNewProject')?.addEventListener('click', () => {
-    const newP: Profile = {
-      id: 'project-' + Date.now(),
-      name: 'Custom Project',
-      rootUrl: 'http://localhost:3000',
-      provider: 'entra',
-      tenant: 'common',
-      clientId: '00000000-0000-0000-0000-000000000002',
-      clientSecret: 'local-sso-secret-' + Math.random().toString(36).slice(2, 10),
-      redirectUri: 'http://localhost:3000/callback',
-      scope: 'openid profile email offline_access',
-      host: '',
-      issuerMode: 'host',
-    };
-    saveActiveProject(newP);
-    renderConfigView(container, 'settings');
-    showToast('Created new project');
-  });
-
-  document.getElementById('btnSaveConfig')?.addEventListener('click', () => {
-    const updated: Profile = {
-      ...project,
-      name: (document.getElementById('inputName') as HTMLInputElement).value,
-      rootUrl: (document.getElementById('inputRootUrl') as HTMLInputElement).value.trim(),
-      tenant: (document.getElementById('inputTenant') as HTMLInputElement).value,
-      clientId: (document.getElementById('inputClientId') as HTMLInputElement).value,
-      clientSecret: (document.getElementById('inputClientSecret') as HTMLInputElement).value,
-      redirectUri: (document.getElementById('inputRedirectUri') as HTMLInputElement).value,
-      scope: (document.getElementById('inputScope') as HTMLInputElement).value,
-      host: (document.getElementById('inputHost') as HTMLInputElement).value.trim(),
-      issuerMode: (document.getElementById('selectIssuerMode') as HTMLSelectElement).value as 'host' | 'entra',
-    };
-    saveActiveProject(updated);
-    renderConfigView(container, activeTab);
-    showToast('Project saved successfully');
-  });
-
-  document.getElementById('btnDeleteProject')?.addEventListener('click', () => {
-    if (confirm('Delete this project?')) {
-      deleteProject(project.id);
-      renderConfigView(container, 'settings');
-      showToast('Project deleted');
-    }
-  });
-
-  document.getElementById('btnToggleSecret')?.addEventListener('click', () => {
-    const input = document.getElementById('inputClientSecret') as HTMLInputElement | null;
-    if (input) input.type = input.type === 'password' ? 'text' : 'password';
-  });
-
-  document.getElementById('btnCopySecret')?.addEventListener('click', (e) => {
-    const input = document.getElementById('inputClientSecret') as HTMLInputElement | null;
-    navigator.clipboard.writeText(input?.value || '');
-    flashCopied(e.currentTarget as HTMLElement);
-    showToast('Copied client secret to clipboard');
-  });
-
-  document.getElementById('copyAuthorizeUrl')?.addEventListener('click', (e) => {
-    navigator.clipboard.writeText(authorizeUrl);
-    flashCopied(e.currentTarget as HTMLElement);
-    showToast('Copied full Authorize URL to clipboard!');
-  });
-
-  document.querySelectorAll<HTMLElement>('.copy-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const text = btn.getAttribute('data-copy') || '';
-      navigator.clipboard.writeText(text);
-      flashCopied(btn);
-      showToast('Copied endpoint URL to clipboard!');
-    });
-  });
-
-  document.querySelectorAll<HTMLElement>('.copy-encoded-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const text = decodeURIComponent(btn.getAttribute('data-copy') || '');
-      navigator.clipboard.writeText(text);
-      flashCopied(btn);
-      showToast('Copied snippet to clipboard!');
-    });
-  });
-
-  // Tab switching (snippets)
-  const tabMsal = document.getElementById('tabMsal');
-  const tabCurl = document.getElementById('tabCurl');
-  const boxMsal = document.getElementById('boxMsal');
-  const boxCurl = document.getElementById('boxCurl');
-
-  tabMsal?.addEventListener('click', () => {
-    tabMsal.className = 'px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-400 font-medium';
-    tabCurl!.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white';
-    boxMsal?.classList.remove('hidden');
-    boxCurl?.classList.add('hidden');
-  });
-
-  tabCurl?.addEventListener('click', () => {
-    tabCurl.className = 'px-2.5 py-1 rounded-md bg-sky-500/20 text-sky-400 font-medium';
-    tabMsal!.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white';
-    boxCurl?.classList.remove('hidden');
-    boxMsal?.classList.add('hidden');
-  });
+  render();
 }

@@ -1,295 +1,406 @@
+import { getStoredUsers, saveStoredUsers, addStoredUser, updateStoredUser, deleteStoredUser } from '../storage';
 import { fetchMockUsers, createMockUser, updateMockUser, deleteMockUser } from '../api';
-import { MockUser } from '../types';
-import { showToast } from '../components/toast';
 import { icon } from '../components/icons';
-import { getActiveProject } from '../storage';
+import { showToast } from '../components/toast';
+import { openModal, closeModal } from '../components/modal';
+import { MockUser } from '../types';
+
+function escapeHtml(str: string | undefined): string {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getInitials(name: string): string {
+  return String(name || 'U')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join('');
+}
+
+function roleType(roles?: string[]): 'admin' | 'developer' | 'user' {
+  const list = (roles || []).map((r) => r.toLowerCase());
+  if (list.some((r) => r.includes('administrator') || r.includes('admin'))) return 'admin';
+  if (list.some((r) => r.includes('developer'))) return 'developer';
+  return 'user';
+}
+
+function userAvatarHtml(user: MockUser, sizeCls = ''): string {
+  const src = user.avatar_url && (user.avatar_url.startsWith('http') || user.avatar_url.startsWith('assets/'))
+    ? user.avatar_url
+    : '';
+  return `
+    <div class="avatar ${sizeCls}">
+      ${src ? `<img src="${escapeHtml(src)}" alt="" width="52" height="52" loading="lazy" onerror="this.remove()" />` : ''}
+      <span class="avatar-fallback" aria-hidden="true">${escapeHtml(getInitials(user.name))}</span>
+    </div>
+  `;
+}
 
 export async function renderUsersView(container: HTMLElement) {
-  container.innerHTML = `
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-6 rounded-2xl">
-        <div>
-          <h1 class="text-2xl font-bold text-white mb-1">Mock User Directory</h1>
-          <p class="text-sm text-slate-400">Manage mock user identities, directory roles, and token claims returned in ID tokens.</p>
-        </div>
-        <button id="btnAddUser" class="shrink-0 px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-white text-sm font-semibold rounded-xl shadow-lg shadow-sky-500/20 transition flex items-center gap-2 self-start sm:self-auto">
-          ${icon('plus', 'w-4 h-4', 2.25)} Add Mock User
-        </button>
-      </div>
-
-      <div id="usersList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="col-span-full py-12 text-center text-slate-500">Loading mock users...</div>
-      </div>
-    </div>
-
-    <!-- Modal Template Placeholder -->
-    <div id="userModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 hidden"></div>
-  `;
-
-  const usersListEl = document.getElementById('usersList')!;
-  const userModalEl = document.getElementById('userModal')!;
-
-  async function loadUsers() {
-    try {
-      const users = await fetchMockUsers();
-      if (users.length === 0) {
-        usersListEl.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500">No mock users found.</div>`;
-        return;
-      }
-
-      usersListEl.innerHTML = users
-        .map(
-          (u) => `
-        <div class="tilt-card glass-panel glass-hover p-6 rounded-2xl space-y-4 relative flex flex-col justify-between">
-          <div class="space-y-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-12 h-12 shrink-0 rounded-xl overflow-hidden relative shadow-md border border-white/10 flex items-center justify-center bg-gradient-to-tr from-sky-500 to-indigo-600">
-                  ${u.avatar_url
-                    ? `<img src="${u.avatar_url}" alt="${u.name}" class="w-full h-full object-cover rounded-xl" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
-                       <div class="w-full h-full hidden items-center justify-center text-lg font-bold text-white">
-                         ${u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                       </div>`
-                    : `<div class="w-full h-full flex items-center justify-center text-lg font-bold text-white">
-                         ${u.name ? u.name.charAt(0).toUpperCase() : 'U'}
-                       </div>`}
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-base font-bold text-white break-words">${u.name}</h3>
-                  <span class="text-xs text-slate-400 font-mono block truncate">${u.email}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Badges -->
-            <div class="flex flex-wrap gap-1.5 pt-1">
-              ${(u.roles || ['User'])
-                .map(
-                  (r) =>
-                    `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">${r}</span>`
-                )
-                .join('')}
-              ${(u.groups || [])
-                .map(
-                  (g) =>
-                    `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${g}</span>`
-                )
-                .join('')}
-            </div>
-
-            <!-- Details / OIDC Claims -->
-            <div class="user-claims-card rounded-xl border p-3 space-y-2.5 text-xs font-mono">
-              <div class="flex items-center justify-between gap-2 min-w-0">
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <span class="user-claim-badge">oid</span>
-                  <span class="user-claim-label text-[11px]">Object ID</span>
-                </div>
-                <div class="flex items-center gap-1 min-w-0 justify-end">
-                  <span class="user-claim-val truncate select-all font-mono text-[11px]" title="${u.oid}">${u.oid}</span>
-                  <button data-copy="${u.oid}" class="copy-claim-btn shrink-0 p-1 rounded transition cursor-pointer" title="Copy Object ID">
-                    ${icon('copy', 'w-3 h-3')}
-                  </button>
-                </div>
-              </div>
-
-              <div class="flex items-center justify-between gap-2 min-w-0">
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <span class="user-claim-badge">tid</span>
-                  <span class="user-claim-label text-[11px]">Tenant ID</span>
-                </div>
-                <div class="flex items-center gap-1 min-w-0 justify-end">
-                  <span class="user-claim-val truncate select-all font-mono text-[11px]" title="${u.tid}">${u.tid}</span>
-                  <button data-copy="${u.tid}" class="copy-claim-btn shrink-0 p-1 rounded transition cursor-pointer" title="Copy Tenant ID">
-                    ${icon('copy', 'w-3 h-3')}
-                  </button>
-                </div>
-              </div>
-
-              <div class="flex items-center justify-between gap-2 min-w-0">
-                <div class="flex items-center gap-1.5 shrink-0">
-                  <span class="user-claim-badge">sub</span>
-                  <span class="user-claim-label text-[11px]">Subject</span>
-                </div>
-                <div class="flex items-center gap-1 min-w-0 justify-end">
-                  <span class="user-claim-val truncate select-all font-mono text-[11px]" title="${u.sub}">${u.sub}</span>
-                  <button data-copy="${u.sub}" class="copy-claim-btn shrink-0 p-1 rounded transition cursor-pointer" title="Copy Subject">
-                    ${icon('copy', 'w-3 h-3')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card Actions -->
-          <div class="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">
-            <button data-login="${u.email}" class="btn-quick-login px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
-              ${icon('zap', 'w-3.5 h-3.5')} Test Login
-            </button>
-            <div class="flex gap-1.5">
-              <button data-edit="${u.id}" class="btn-edit px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition">Edit</button>
-              <button data-delete="${u.id}" class="btn-delete px-2.5 py-1.5 text-rose-400 hover:bg-rose-500/10 text-xs font-medium rounded-lg transition">Delete</button>
-            </div>
-          </div>
-        </div>
-      `
-        )
-        .join('');
-
-      // Wire copy claim buttons
-      document.querySelectorAll('.copy-claim-btn').forEach((btn) => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const text = btn.getAttribute('data-copy') || '';
-          navigator.clipboard.writeText(text);
-          showToast('Copied claim to clipboard');
-        });
-      });
-
-      // Wire edit / delete / quick login
-      document.querySelectorAll('.btn-quick-login').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const email = btn.getAttribute('data-login') || '';
-          const project = getActiveProject();
-          const origin = window.location.origin;
-          const tenant = project.tenant || 'common';
-          const authUrl = `${origin}/${tenant}/oauth2/v2.0/authorize?client_id=${encodeURIComponent(
-            project.clientId
-          )}&response_type=code&redirect_uri=${encodeURIComponent(
-            project.redirectUri
-          )}&scope=${encodeURIComponent(project.scope)}&login_hint=${encodeURIComponent(email)}&prompt=none`;
-          window.location.href = authUrl;
-        });
-      });
-
-      document.querySelectorAll('.btn-edit').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const id = btn.getAttribute('data-edit') || '';
-          const user = users.find((u) => u.id === id);
-          if (user) openUserModal(user);
-        });
-      });
-
-      document.querySelectorAll('.btn-delete').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-delete') || '';
-          if (confirm('Delete this mock user?')) {
-            try {
-              await deleteMockUser(id);
-              showToast('Mock user deleted');
-              loadUsers();
-            } catch (err: any) {
-              showToast(err.message, 'error');
-            }
-          }
-        });
-      });
-    } catch (err: any) {
-      usersListEl.innerHTML = `<div class="col-span-full py-12 text-center text-rose-400">Failed to load users: ${err.message}</div>`;
+  let users: MockUser[] = getStoredUsers();
+  try {
+    const apiUsers = await fetchMockUsers();
+    if (apiUsers && apiUsers.length > 0) {
+      users = apiUsers;
+      saveStoredUsers(users);
     }
+  } catch (e) {
+    // offline or static mode, use stored users
   }
 
-  function openUserModal(user?: MockUser) {
-    const isEdit = !!user;
-    userModalEl.innerHTML = `
-      <div class="glass-panel max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl shadow-2xl space-y-4 no-scrollbar">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 class="text-lg font-bold text-white">${isEdit ? 'Edit Mock User' : 'Add New Mock User'}</h2>
-          <button id="btnCloseModal" class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition" aria-label="Close">${icon('close', 'w-4 h-4')}</button>
-        </div>
+  let filter: 'all' | 'admin' | 'developer' | 'user' = 'all';
+  let query = '';
 
-        <form id="userForm" class="space-y-3 text-left">
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Display Name</label>
-            <input id="userName" type="text" required value="${user?.name || ''}" placeholder="e.g. Sazzad Sazib" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-          </div>
+  const render = () => {
+    const filteredUsers = users.filter((u) => {
+      const type = roleType(u.roles);
+      const matchFilter = filter === 'all' || type === filter;
+      const q = query.toLowerCase().trim();
+      const matchQuery =
+        !q ||
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.roles || []).some((r) => r.toLowerCase().includes(q)) ||
+        (u.groups || []).some((g) => g.toLowerCase().includes(q));
+      return matchFilter && matchQuery;
+    });
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Email / Preferred Username</label>
-            <input id="userEmail" type="email" required value="${user?.email || ''}" placeholder="e.g. sazib@gmail.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Avatar Image URL (optional)</label>
-            <input id="userAvatar" type="url" value="${user?.avatar_url || ''}" placeholder="e.g. https://avatars.githubusercontent.com/..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Given Name</label>
-              <input id="userGivenName" type="text" value="${user?.given_name || ''}" placeholder="Sazzad" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+    container.innerHTML = `
+      <section class="page">
+        <header class="page-head">
+          <div class="page-head-copy">
+            <div class="eyebrow">
+              <span class="eyebrow-index">03</span>
+              <span>Mock user directory</span>
+              <span class="eyebrow-rule"></span>
             </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Family Name</label>
-              <input id="userFamilyName" type="text" value="${user?.family_name || ''}" placeholder="Sazib" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
+            <h1 class="page-title">Mock users</h1>
+            <p class="page-description">Curate the identities, roles, and group claims returned by the local provider. Test each persona against any project.</p>
           </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Roles (comma-separated)</label>
-              <input id="userRoles" type="text" value="${(user?.roles || []).join(', ')}" placeholder="e.g. Global Administrator, Developer" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-400 mb-1">Groups (comma-separated)</label>
-              <input id="userGroups" type="text" value="${(user?.groups || []).join(', ')}" placeholder="e.g. Engineers, Admins" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-sky-500 focus:outline-none" />
-            </div>
-          </div>
-
-          <div class="pt-3 flex justify-end gap-2 border-t border-slate-800">
-            <button type="button" id="btnCancelModal" class="px-4 py-2 text-slate-400 hover:text-white text-sm">Cancel</button>
-            <button type="submit" class="px-5 py-2 bg-sky-500 hover:bg-sky-400 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-sky-500/20">
-              ${isEdit ? 'Save Changes' : 'Create User'}
+          <div class="page-actions">
+            <button type="button" class="btn btn-primary" id="btnNewUser">
+              ${icon('plus', 'w-4 h-4')} Add mock user
             </button>
           </div>
-        </form>
-      </div>
+        </header>
+
+        <div class="toolbar">
+          <div class="search-box">
+            ${icon('search', 'w-3.5 h-3.5')}
+            <input class="input" id="userSearchInput" placeholder="Search by name, email, role, or group" value="${escapeHtml(query)}" />
+          </div>
+          <div class="toolbar-group">
+            <div class="filter-row">
+              <button type="button" class="filter-button${filter === 'all' ? ' is-active' : ''}" data-user-filter="all">All</button>
+              <button type="button" class="filter-button${filter === 'admin' ? ' is-active' : ''}" data-user-filter="admin">Admins</button>
+              <button type="button" class="filter-button${filter === 'developer' ? ' is-active' : ''}" data-user-filter="developer">Developers</button>
+              <button type="button" class="filter-button${filter === 'user' ? ' is-active' : ''}" data-user-filter="user">Users</button>
+            </div>
+            <span class="result-count">${filteredUsers.length} of ${users.length}</span>
+          </div>
+        </div>
+
+        ${
+          filteredUsers.length
+            ? `
+          <div class="user-grid">
+            ${filteredUsers
+              .map((u) => {
+                const type = roleType(u.roles);
+                return `
+                <article class="user-card" data-user-id="${u.id}">
+                  <div class="user-card-head">
+                    ${userAvatarHtml(u)}
+                    <div class="user-identity">
+                      <div class="user-name">${escapeHtml(u.name)}</div>
+                      <div class="user-email" title="${escapeHtml(u.email)}">${escapeHtml(u.email)}</div>
+                    </div>
+                    ${type === 'admin' ? `<span class="chip chip-accent">Admin</span>` : ''}
+                  </div>
+                  <div class="user-roles">
+                    ${(u.roles || ['User'])
+                      .map((r) => `<span class="chip ${roleType([r]) === 'admin' ? 'chip-accent' : 'chip-blue'}">${escapeHtml(r)}</span>`)
+                      .join('')}
+                    ${(u.groups || []).map((g) => `<span class="chip">${escapeHtml(g)}</span>`).join('')}
+                  </div>
+                  <div class="claim-list">
+                    <div class="claim-row">
+                      <span class="claim-key">oid</span>
+                      <span class="claim-value" title="${escapeHtml(u.oid)}">${escapeHtml(u.oid)}</span>
+                      <button type="button" class="claim-copy" data-copy-claim="${escapeHtml(u.oid)}" title="Copy object ID">
+                        ${icon('copy', 'w-3 h-3')}
+                      </button>
+                    </div>
+                    <div class="claim-row">
+                      <span class="claim-key">tid</span>
+                      <span class="claim-value" title="${escapeHtml(u.tid)}">${escapeHtml(u.tid)}</span>
+                      <button type="button" class="claim-copy" data-copy-claim="${escapeHtml(u.tid)}" title="Copy tenant ID">
+                        ${icon('copy', 'w-3 h-3')}
+                      </button>
+                    </div>
+                    <div class="claim-row">
+                      <span class="claim-key">sub</span>
+                      <span class="claim-value" title="${escapeHtml(u.sub)}">${escapeHtml(u.sub)}</span>
+                      <button type="button" class="claim-copy" data-copy-claim="${escapeHtml(u.sub)}" title="Copy subject ID">
+                        ${icon('copy', 'w-3 h-3')}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="user-actions">
+                    <button type="button" class="btn btn-secondary" data-quick-login="${escapeHtml(u.id)}">
+                      ${icon('zap', 'w-3.5 h-3.5')} Test login
+                    </button>
+                    <span class="spacer"></span>
+                    <button type="button" class="icon-button" data-edit-user="${escapeHtml(u.id)}" title="Edit user">
+                      ${icon('pencil', 'w-3.5 h-3.5')}
+                    </button>
+                    <button type="button" class="icon-button" data-delete-user="${escapeHtml(u.id)}" title="Delete user">
+                      ${icon('trash', 'w-3.5 h-3.5')}
+                    </button>
+                  </div>
+                </article>
+              `;
+              })
+              .join('')}
+          </div>
+        `
+            : `
+          <div class="empty-state">
+            <span class="empty-icon">${icon('users', 'w-5 h-5')}</span>
+            <h2 class="empty-title">${users.length ? 'No matching users' : 'No mock users yet'}</h2>
+            <p class="empty-copy">${users.length ? 'Try a broader search or switch the role filter.' : 'Add an identity so you can test token claims and complete authorization flows.'}</p>
+            ${!users.length ? `<button type="button" class="btn btn-primary" id="btnEmptyNewUser">${icon('plus', 'w-3.5 h-3.5')} Add mock user</button>` : ''}
+          </div>
+        `
+        }
+      </section>
     `;
 
-    userModalEl.classList.remove('hidden');
-
-    document.getElementById('btnCloseModal')?.addEventListener('click', () => userModalEl.classList.add('hidden'));
-    document.getElementById('btnCancelModal')?.addEventListener('click', () => userModalEl.classList.add('hidden'));
-
-    document.getElementById('userForm')?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = (document.getElementById('userName') as HTMLInputElement).value;
-      const email = (document.getElementById('userEmail') as HTMLInputElement).value;
-      const avatarUrl = (document.getElementById('userAvatar') as HTMLInputElement).value.trim();
-      const givenName = (document.getElementById('userGivenName') as HTMLInputElement).value;
-      const familyName = (document.getElementById('userFamilyName') as HTMLInputElement).value;
-      const rolesStr = (document.getElementById('userRoles') as HTMLInputElement).value;
-      const groupsStr = (document.getElementById('userGroups') as HTMLInputElement).value;
-
-      const roles = rolesStr ? rolesStr.split(',').map((r) => r.trim()).filter(Boolean) : ['User'];
-      const groups = groupsStr ? groupsStr.split(',').map((g) => g.trim()).filter(Boolean) : [];
-
-      const payload: Partial<MockUser> = {
-        name,
-        email,
-        preferred_username: email,
-        given_name: givenName,
-        family_name: familyName,
-        avatar_url: avatarUrl,
-        roles,
-        groups,
-      };
-
-      try {
-        if (isEdit && user) {
-          await updateMockUser(user.id, payload);
-          showToast('User updated');
-        } else {
-          await createMockUser(payload);
-          showToast('User created');
-        }
-        userModalEl.classList.add('hidden');
-        loadUsers();
-      } catch (err: any) {
-        showToast(err.message, 'error');
+    // Bind event handlers
+    const searchInput = document.getElementById('userSearchInput') as HTMLInputElement | null;
+    searchInput?.addEventListener('input', () => {
+      query = searchInput.value;
+      render();
+      const updated = document.getElementById('userSearchInput') as HTMLInputElement | null;
+      if (updated) {
+        updated.focus();
+        updated.setSelectionRange(query.length, query.length);
       }
     });
-  }
 
-  document.getElementById('btnAddUser')?.addEventListener('click', () => openUserModal());
-  await loadUsers();
+    container.querySelectorAll<HTMLButtonElement>('[data-user-filter]').forEach((b) => {
+      b.addEventListener('click', () => {
+        filter = b.dataset.userFilter as any;
+        render();
+      });
+    });
+
+    container.querySelectorAll<HTMLButtonElement>('[data-copy-claim]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const val = b.dataset.copyClaim || '';
+        navigator.clipboard.writeText(val);
+        showToast('Copied claim to clipboard');
+      });
+    });
+
+    container.querySelectorAll<HTMLButtonElement>('[data-quick-login]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const id = b.dataset.quickLogin!;
+        sessionStorage.setItem('ssoLocal.pendingLoginUser', id);
+        window.location.hash = '#login';
+      });
+    });
+
+    const openUserModal = (existingUser?: MockUser) => {
+      const isEdit = Boolean(existingUser);
+      openModal(`
+        <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+          <form id="userForm" novalidate>
+            <div class="modal-head">
+              <div>
+                <h2 class="modal-title" id="userModalTitle">${isEdit ? 'Edit mock user' : 'Add mock user'}</h2>
+                <p class="modal-description">${isEdit ? 'Update the identity claims returned by the local provider.' : 'Create an identity for token and authorization testing.'}</p>
+              </div>
+              <button type="button" class="icon-button modal-close" id="btnCloseUserModal" aria-label="Close dialog">
+                ${icon('close', 'w-4 h-4')}
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="form-grid">
+                <div class="field field-full">
+                  <label class="field-label" for="editUserName">Display name <span class="required">*</span></label>
+                  <input class="input" id="editUserName" value="${escapeHtml(existingUser?.name || '')}" placeholder="e.g. Adele Vance" data-autofocus required />
+                  <span class="field-error" id="err-editUserName"></span>
+                </div>
+                <div class="field field-full">
+                  <label class="field-label" for="editUserEmail">Email / preferred username <span class="required">*</span></label>
+                  <input class="input mono" id="editUserEmail" type="email" value="${escapeHtml(existingUser?.email || '')}" placeholder="name@contoso.com" required />
+                  <span class="field-error" id="err-editUserEmail"></span>
+                </div>
+                <div class="field field-full">
+                  <label class="field-label" for="editUserAvatar">Avatar URL</label>
+                  <input class="input mono" id="editUserAvatar" type="url" value="${escapeHtml(existingUser?.avatar_url || '')}" placeholder="https://… or assets/avatars/name.jpg" />
+                  <span class="field-help">Optional. Leave blank to display computed initials.</span>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="editUserGiven">Given name</label>
+                  <input class="input" id="editUserGiven" value="${escapeHtml(existingUser?.given_name || '')}" placeholder="Adele" />
+                </div>
+                <div class="field">
+                  <label class="field-label" for="editUserFamily">Family name</label>
+                  <input class="input" id="editUserFamily" value="${escapeHtml(existingUser?.family_name || '')}" placeholder="Vance" />
+                </div>
+                <div class="field">
+                  <label class="field-label" for="editUserRoles">Roles</label>
+                  <input class="input" id="editUserRoles" value="${escapeHtml((existingUser?.roles || ['User']).join(', '))}" placeholder="Global Administrator, User" />
+                  <span class="field-help">Comma-separated.</span>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="editUserGroups">Groups</label>
+                  <input class="input" id="editUserGroups" value="${escapeHtml((existingUser?.groups || []).join(', '))}" placeholder="Engineers, Admins" />
+                  <span class="field-help">Comma-separated.</span>
+                </div>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-quiet" id="btnCancelUserModal">Cancel</button>
+              <button type="submit" class="btn btn-primary">${icon(isEdit ? 'check' : 'plus', 'w-3.5 h-3.5')} ${isEdit ? 'Save changes' : 'Create user'}</button>
+            </div>
+          </form>
+        </div>
+      `);
+
+      document.getElementById('btnCloseUserModal')?.addEventListener('click', closeModal);
+      document.getElementById('btnCancelUserModal')?.addEventListener('click', closeModal);
+
+      const form = document.getElementById('userForm') as HTMLFormElement;
+      form?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = (document.getElementById('editUserName') as HTMLInputElement).value.trim();
+        const email = (document.getElementById('editUserEmail') as HTMLInputElement).value.trim();
+        const avatarUrl = (document.getElementById('editUserAvatar') as HTMLInputElement).value.trim();
+        const given = (document.getElementById('editUserGiven') as HTMLInputElement).value.trim();
+        const family = (document.getElementById('editUserFamily') as HTMLInputElement).value.trim();
+        const roles = (document.getElementById('editUserRoles') as HTMLInputElement).value
+          .split(',')
+          .map((r) => r.trim())
+          .filter(Boolean);
+        const groups = (document.getElementById('editUserGroups') as HTMLInputElement).value
+          .split(',')
+          .map((g) => g.trim())
+          .filter(Boolean);
+
+        if (!name || !email) {
+          showToast('Display name and Email are required', 'error');
+          return;
+        }
+
+        if (isEdit && existingUser) {
+          const updated: MockUser = {
+            ...existingUser,
+            name,
+            email,
+            preferred_username: email,
+            avatar_url: avatarUrl,
+            given_name: given,
+            family_name: family,
+            roles: roles.length ? roles : ['User'],
+            groups,
+          };
+          try {
+            await updateMockUser(existingUser.id, updated);
+          } catch {}
+          updateStoredUser(updated);
+          const idx = users.findIndex((u) => u.id === existingUser.id);
+          if (idx >= 0) users[idx] = updated;
+          showToast('Mock user updated');
+        } else {
+          const newUser: MockUser = {
+            id: `user-${Date.now()}`,
+            name,
+            email,
+            preferred_username: email,
+            avatar_url: avatarUrl,
+            given_name: given,
+            family_name: family,
+            roles: roles.length ? roles : ['User'],
+            groups,
+            oid: `oid-${Math.random().toString(36).slice(2, 14)}`,
+            tid: '72f988bf-86f1-41af-91ab-2d7cd011db47',
+            sub: `sub-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.floor(Math.random() * 900 + 100)}`,
+          };
+          try {
+            await createMockUser(newUser);
+          } catch {}
+          addStoredUser(newUser);
+          users.push(newUser);
+          showToast('Mock user created');
+        }
+
+        closeModal();
+        render();
+      });
+    };
+
+    document.getElementById('btnNewUser')?.addEventListener('click', () => openUserModal());
+    document.getElementById('btnEmptyNewUser')?.addEventListener('click', () => openUserModal());
+
+    container.querySelectorAll<HTMLButtonElement>('[data-edit-user]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.editUser!;
+        const u = users.find((user) => user.id === id);
+        if (u) openUserModal(u);
+      });
+    });
+
+    container.querySelectorAll<HTMLButtonElement>('[data-delete-user]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.deleteUser!;
+        const u = users.find((user) => user.id === id);
+        if (!u) return;
+
+        openModal(`
+          <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="delUserTitle">
+            <div class="modal-head">
+              <div>
+                <h2 class="modal-title" id="delUserTitle">Delete mock user?</h2>
+                <p class="modal-description">This identity will no longer be available in the mock directory.</p>
+              </div>
+              <button type="button" class="icon-button modal-close" id="btnCloseDelUserModal" aria-label="Close dialog">
+                ${icon('close', 'w-4 h-4')}
+              </button>
+            </div>
+            <div class="modal-body">
+              <p class="confirm-copy"><strong>${escapeHtml(u.name)}</strong> (${escapeHtml(u.email)}) will be deleted. Existing sessions will not be affected.</p>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-quiet" id="btnCancelDelUser">Cancel</button>
+              <button type="button" class="btn btn-danger" id="btnConfirmDelUser">${icon('trash', 'w-3.5 h-3.5')} Delete user</button>
+            </div>
+          </div>
+        `);
+
+        document.getElementById('btnCloseDelUserModal')?.addEventListener('click', closeModal);
+        document.getElementById('btnCancelDelUser')?.addEventListener('click', closeModal);
+        document.getElementById('btnConfirmDelUser')?.addEventListener('click', async () => {
+          try {
+            await deleteMockUser(id);
+          } catch {}
+          deleteStoredUser(id);
+          users = users.filter((user) => user.id !== id);
+          closeModal();
+          showToast(`Deleted ${u.name}`);
+          render();
+        });
+      });
+    });
+  };
+
+  render();
 }

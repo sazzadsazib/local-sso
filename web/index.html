@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>local-sso — Mock Microsoft Entra ID & SSO Playground</title>
-  <meta name="description" content="Single-binary local mock Microsoft Entra ID (OIDC) provider and SSO test playground. Developed by Sazzad Sazib (@sazzadsazib).">
-  <meta name="theme-color" content="#000000">
+  <title>local-sso — Identity lab</title>
+  <meta name="description" content="A local Microsoft Entra ID compatible OIDC provider and SSO test playground.">
+  <meta name="theme-color" content="#030305">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="apple-touch-icon" href="./favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,23 +14,23 @@
   <script>
     (function() {
       try {
-        var t = localStorage.getItem('local-sso-theme');
-        if (t === 'light') {
-          document.documentElement.classList.remove('dark');
-          document.documentElement.classList.add('light');
-        } else {
-          document.documentElement.classList.remove('light');
-          document.documentElement.classList.add('dark');
+        var savedTheme = localStorage.getItem('local-sso.theme') || localStorage.getItem('local-sso-theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          document.documentElement.dataset.theme = savedTheme;
+          document.documentElement.className = savedTheme;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', savedTheme === 'light' ? '#f8fafc' : '#030305');
         }
-      } catch (e) {}
+      } catch (error) {}
     })();
   </script>
   <link rel="stylesheet" href="/src/style.css">
 </head>
-<body class="text-slate-100 min-h-screen font-sans antialiased selection:bg-orange-500 selection:text-white flex flex-col">
-  <div id="cursor-glow" class="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true"></div>
-  <div id="app" class="relative z-10 flex flex-col flex-1"></div>
-  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-50 flex flex-col gap-2 pointer-events-none items-end"></div>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div id="app" class="app-shell"></div>
+  <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+  <div id="modal-root"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
