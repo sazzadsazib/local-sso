@@ -11,7 +11,7 @@ export interface MockUser {
   avatar_url?: string;
   roles?: string[];
   groups?: string[];
-  custom_claims?: Record<string, any>;
+  custom_claims?: Record<string, unknown>;
 }
 
 export interface TokenSession {
@@ -58,8 +58,56 @@ export interface Profile {
   loginHint?: string;
 }
 
+export interface JWTHeader {
+  alg?: string;
+  typ?: string;
+  kid?: string;
+  [key: string]: unknown;
+}
+
+export interface JWTPayload {
+  iss?: string;
+  sub?: string;
+  aud?: string | string[];
+  exp?: number;
+  nbf?: number;
+  iat?: number;
+  jti?: string;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  email?: string;
+  preferred_username?: string;
+  tid?: string;
+  oid?: string;
+  roles?: string[];
+  groups?: string[];
+  picture?: string;
+  avatar_url?: string;
+  scp?: string;
+  appid?: string;
+  department?: string;
+  job_title?: string;
+  [key: string]: unknown;
+}
+
 export interface DecodedJWT {
-  header: Record<string, any>;
-  payload: Record<string, any>;
+  header: JWTHeader;
+  payload: JWTPayload;
   signature: string;
+}
+
+export interface VerifyResponse {
+  verified: boolean;
+  reason?: string;
+  claims?: JWTPayload;
+}
+
+export type ToastType = 'success' | 'info' | 'error';
+
+export interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+  duration?: number;
 }

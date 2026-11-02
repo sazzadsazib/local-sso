@@ -19,6 +19,8 @@ sso-local.exe
 web/node_modules/
 web/dist/
 web/.vite/
+web/src/routeTree.gen.ts
+routeTree.gen.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

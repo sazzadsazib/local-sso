@@ -32,7 +32,7 @@ const defaultProjects: Profile[] = [
     scope: 'openid profile email offline_access User.Read',
     host: '',
     issuerMode: 'host',
-  }
+  },
 ];
 
 export function getProjects(): Profile[] {
@@ -42,37 +42,39 @@ export function getProjects(): Profile[] {
       saveProjects(defaultProjects);
       return defaultProjects;
     }
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) as unknown;
     let modified = false;
     if (Array.isArray(parsed)) {
-      const p1 = parsed.find((p) => p.id === 'default-entra');
+      const projects = parsed as Profile[];
+      const p1 = projects.find((p) => p.id === 'default-entra');
       if (p1 && (p1.name === 'Microsoft Entra ID (Local Mock)' || p1.name === 'bkash Portal')) {
         p1.name = 'Portal SSO';
         modified = true;
       }
-      const p2 = parsed.find((p) => p.id === 'contoso-tenant');
+      const p2 = projects.find((p) => p.id === 'contoso-tenant');
       if (p2 && p2.name === 'Contoso Enterprise Tenant') {
         p2.name = 'Portal Contoso Enterprise SSO';
         modified = true;
       }
       // Backfill a client secret for projects stored before secrets were supported.
-      for (const p of parsed) {
+      for (const p of projects) {
         if (p && !p.clientSecret) {
           p.clientSecret = `local-sso-secret-${Math.random().toString(36).slice(2, 10)}`;
           modified = true;
         }
       }
       if (modified) {
-        saveProjects(parsed);
+        saveProjects(projects);
       }
+      return projects;
     }
-    return parsed;
+    return defaultProjects;
   } catch {
     return defaultProjects;
   }
 }
 
-export function saveProjects(projects: Profile[]) {
+export function saveProjects(projects: Profile[]): void {
   localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
 }
 
@@ -88,11 +90,11 @@ export function getActiveProject(): Profile {
   return defaultProjects[0];
 }
 
-export function setActiveProjectId(id: string) {
+export function setActiveProjectId(id: string): void {
   localStorage.setItem(ACTIVE_PROJECT_KEY, id);
 }
 
-export function saveActiveProject(project: Profile) {
+export function saveActiveProject(project: Profile): void {
   const projects = getProjects();
   const index = projects.findIndex((p) => p.id === project.id);
   if (index >= 0) {
@@ -104,7 +106,7 @@ export function saveActiveProject(project: Profile) {
   setActiveProjectId(project.id);
 }
 
-export function deleteProject(id: string) {
+export function deleteProject(id: string): void {
   const projects = getProjects().filter((p) => p.id !== id);
   saveProjects(projects);
   if (projects.length > 0) {
@@ -115,33 +117,33 @@ export function deleteProject(id: string) {
 export function getPKCEState(): PKCEState | null {
   try {
     const raw = localStorage.getItem(PKCE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? (JSON.parse(raw) as PKCEState) : null;
   } catch {
     return null;
   }
 }
 
-export function savePKCEState(state: PKCEState) {
+export function savePKCEState(state: PKCEState): void {
   localStorage.setItem(PKCE_KEY, JSON.stringify(state));
 }
 
-export function clearPKCEState() {
+export function clearPKCEState(): void {
   localStorage.removeItem(PKCE_KEY);
 }
 
 export function getSession(): TokenSession | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? (JSON.parse(raw) as TokenSession) : null;
   } catch {
     return null;
   }
 }
 
-export function saveSession(session: TokenSession) {
+export function saveSession(session: TokenSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
-export function clearSession() {
+export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
 }

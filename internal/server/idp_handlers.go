@@ -525,7 +525,7 @@ var authPromptHTML = template.Must(template.New("authPrompt").Parse(`<!DOCTYPE h
         var errDesc = errCode === 'consent_required' ? 'The+user+denied+the+consent+request' : 'The+user+canceled+the+sign-in+request';
         window.location.href = redirectUri + sep + 'error=' + errCode + '&error_description=' + errDesc + '&state=' + encodeURIComponent(state || '');
       } else {
-        window.location.href = '/#login';
+        window.location.href = '/login';
       }
     }
   </script>
@@ -845,7 +845,7 @@ func (s *Server) HandleLogoutEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet"></head><body style="font-family:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#000;color:#f5f5f5;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="border:1px solid rgba(255,255,255,0.1);background:linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));backdrop-filter:blur(20px);border-radius:16px;padding:2rem 2.5rem;text-align:center;box-shadow:0 1px 0 0 rgba(255,255,255,0.06) inset;"><h2 style="margin:0 0 0.5rem;font-size:1.25rem;letter-spacing:-0.02em;">You have signed out of local-sso.</h2><p style="margin:0;color:#a1a1a1;font-size:0.875rem;">Close this tab or <a href="/#login" style="color:#ff6900;text-decoration:none;">return to the dashboard</a>.</p></div></body></html>`))
+	_, _ = w.Write([]byte(`<!DOCTYPE html><html><head><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet"></head><body style="font-family:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#000;color:#f5f5f5;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="border:1px solid rgba(255,255,255,0.1);background:linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));backdrop-filter:blur(20px);border-radius:16px;padding:2rem 2.5rem;text-align:center;box-shadow:0 1px 0 0 rgba(255,255,255,0.06) inset;"><h2 style="margin:0 0 0.5rem;font-size:1.25rem;letter-spacing:-0.02em;">You have signed out of local-sso.</h2><p style="margin:0;color:#a1a1a1;font-size:0.875rem;">Close this tab or <a href="/login" style="color:#ff6900;text-decoration:none;">return to the dashboard</a>.</p></div></body></html>`))
 }
 
 // HandleUserInfoEndpoint handles GET/POST /oidc/userinfo or /{tenant}/oidc/userinfo.

@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
 
 // Default target is the internal Go port that ./run.sh auto-picks first;
 // ./run.sh always exports SSO_BACKEND explicitly. Never default to the Vite
@@ -16,8 +18,15 @@ const GO_BACKEND = process.env.SSO_BACKEND || `http://127.0.0.1:${process.env.GO
 const oidcTenant = String.raw`^/(common|organizations|consumers|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/`;
 
 export default defineConfig({
-  plugins: [tailwindcss()],
-  base: './',
+  plugins: [
+    TanStackRouterVite({
+      routesDirectory: './src/routes',
+      generatedRouteTree: './src/routeTree.gen.ts',
+    }),
+    tailwindcss(),
+    react(),
+  ],
+  base: '/',
   server: {
     port: 5173,
     proxy: {

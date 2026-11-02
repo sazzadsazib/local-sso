@@ -119,9 +119,9 @@ func main() {
 	fmt.Println("================================================================")
 	fmt.Println("  local-sso — Local Mock Microsoft Entra ID (OIDC) & SSO Playground")
 	fmt.Println("================================================================")
-	fmt.Printf("  -> Web Dashboard:    http://localhost:%d/#projects\n", port)
-	fmt.Printf("  -> Mock Users:       http://localhost:%d/#users\n", port)
-	fmt.Printf("  -> Test Client:      http://localhost:%d/#login\n", port)
+	fmt.Printf("  -> Web Dashboard:    http://localhost:%d/projects\n", port)
+	fmt.Printf("  -> Mock Users:       http://localhost:%d/users\n", port)
+	fmt.Printf("  -> Test Client:      http://localhost:%d/login\n", port)
 	fmt.Println("----------------------------------------------------------------")
 	fmt.Printf("  -> OIDC Discovery:   http://localhost:%d/%s/oauth2/v2.0/.well-known/openid-configuration\n", port, tenant)
 	fmt.Printf("  -> Authorize URL:    http://localhost:%d/%s/oauth2/v2.0/authorize\n", port, tenant)
@@ -131,7 +131,7 @@ func main() {
 	fmt.Println("Press Ctrl+C to stop.")
 
 	if !noBrowser {
-		go openBrowser(fmt.Sprintf("http://localhost:%d/#projects", port))
+		go openBrowser(fmt.Sprintf("http://localhost:%d/projects", port))
 	}
 
 	done := make(chan struct{})

@@ -1,11 +1,11 @@
-import { MockUser, TokenSession } from './types';
+import { MockUser, TokenSession, DecodedJWT, VerifyResponse, JWTHeader, JWTPayload } from './types';
 
-const BASE_URL = window.location.origin;
+const BASE_URL = typeof window !== 'undefined' ? window.location.origin : '';
 
 export async function fetchMockUsers(): Promise<MockUser[]> {
   const res = await fetch(`${BASE_URL}/api/users`);
   if (!res.ok) throw new Error(`Failed to fetch users: ${res.statusText}`);
-  return res.json();
+  return (await res.json()) as MockUser[];
 }
 
 export async function createMockUser(user: Partial<MockUser>): Promise<MockUser> {
@@ -15,7 +15,7 @@ export async function createMockUser(user: Partial<MockUser>): Promise<MockUser>
     body: JSON.stringify(user),
   });
   if (!res.ok) throw new Error(`Failed to create user: ${res.statusText}`);
-  return res.json();
+  return (await res.json()) as MockUser;
 }
 
 export async function updateMockUser(id: string, user: Partial<MockUser>): Promise<MockUser> {
@@ -25,7 +25,7 @@ export async function updateMockUser(id: string, user: Partial<MockUser>): Promi
     body: JSON.stringify(user),
   });
   if (!res.ok) throw new Error(`Failed to update user: ${res.statusText}`);
-  return res.json();
+  return (await res.json()) as MockUser;
 }
 
 export async function deleteMockUser(id: string): Promise<void> {
@@ -50,14 +50,19 @@ export async function exchangeToken(tokenUrl: string, params: Record<string, str
     body: body.toString(),
   });
 
-  const data = await res.json();
+  const data = (await res.json()) as TokenSession & { error?: string; error_description?: string };
   if (!res.ok) {
     throw new Error(data.error_description || data.error || 'Token exchange failed');
   }
   return data;
 }
 
-export async function verifyIDToken(idToken: string, jwksUri: string, issuer: string, audience: string) {
+export async function verifyIDToken(
+  idToken: string,
+  jwksUri: string,
+  issuer: string,
+  audience: string
+): Promise<VerifyResponse> {
   const res = await fetch(`${BASE_URL}/api/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -68,15 +73,15 @@ export async function verifyIDToken(idToken: string, jwksUri: string, issuer: st
       audience: audience,
     }),
   });
-  return res.json();
+  return (await res.json()) as VerifyResponse;
 }
 
-export function decodeJWT(token: string) {
+export function decodeJWT(token: string): DecodedJWT | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/'))) as JWTHeader;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))) as JWTPayload;
     return { header, payload, signature: parts[2] };
   } catch {
     return null;
